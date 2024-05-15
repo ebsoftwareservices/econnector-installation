@@ -1,0 +1,6 @@
+.vagrant
+.vscode
+.DS_Store
+
+Vagrantfile
+credentials.json

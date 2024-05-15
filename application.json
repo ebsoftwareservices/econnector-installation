@@ -1,0 +1,5 @@
+{
+  "tokenUri": "https://dev-econnector.auth.eu-central-1.amazoncognito.com/oauth2/token",
+  "controllerHost": "https://services.ebusiness-cloud.com",
+  "s3Bucket": "dev-econnector-files"
+}
