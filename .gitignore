@@ -4,3 +4,4 @@
 
 Vagrantfile
 credentials.json
+*.zip
