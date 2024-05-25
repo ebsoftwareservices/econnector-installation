@@ -9,4 +9,4 @@ Run `uninstall.bat` to uninstall the econnector, it couldn't remove the `C:\Econ
 
 ## Debug
 
-Check the logs in `C:\Econnector\logs`.
+Check the logs in `C:\econnector\logs`.

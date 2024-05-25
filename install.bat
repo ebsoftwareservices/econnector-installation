@@ -6,7 +6,8 @@ set INSTALL_HOME=C:\%SERVICE_NAME%
 
 REM install java
 if not exist jdk.zip (
-powershell -command "Start-BitsTransfer -Source https://download.java.net/java/GA/jdk21.0.2/f2283984656d49d69e91c558476027ac/13/GPL/openjdk-21.0.2_windows-x64_bin.zip -Destination jdk.zip"
+powershell -command "Start-BitsTransfer -Source https://download.java.net/java/GA/jdk21.0.2/f2283984656d49d69e91c558476027ac/13/GPL/openjdk-21.0.2_windows-x64_bin.zip -Destination jdk.zip.tmp"
+move /y jdk.zip.tmp jdk.zip
 )
 
 powershell -command "Expand-Archive jdk.zip %INSTALL_HOME%"
@@ -37,7 +38,9 @@ set PR_STOPPARAMS=stop
 
 REM Install service
 mkdir "%PR_LOGPATH%" >NUL 2>&1
-xcopy /E . "%INSTALL_HOME%" >NUL 2>&1
+xcopy /E *.bat "%INSTALL_HOME%" >NUL 2>&1
+xcopy /E files\* "%INSTALL_HOME%" >NUL 2>&1
+mklink "%USERPROFILE%"\Desktop\econnector "%INSTALL_HOME%"\econnector-ui.exe
 "%INSTALL_HOME%\prunsrv.exe" //DS//%SERVICE_NAME% >NUL 2>&1
 "%INSTALL_HOME%\prunsrv.exe" //IS//%SERVICE_NAME%
 @echo on
