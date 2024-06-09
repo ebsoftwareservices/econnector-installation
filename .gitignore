@@ -1,0 +1,8 @@
+.vagrant
+.vscode
+.DS_Store
+.idea
+
+Vagrantfile
+credentials.json
+*.zip
