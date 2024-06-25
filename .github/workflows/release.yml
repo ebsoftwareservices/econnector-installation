@@ -39,8 +39,8 @@ jobs:
       - name: Build Zip File 
         run: |
           mv files/dist/econnector-ui.exe files/econnector-ui.exe
-          rm -rf files/dist files/econnector-ui.zip
-          zip -r econnector-installation.zip . -x "*/.*" -x README.md
+          rm -rf files/dist files/econnector-ui.zip .git* *.md
+          zip -r econnector-installation.zip .
 
       - name: Create Release
         id: create_release
