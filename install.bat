@@ -1,5 +1,4 @@
 echo Installing Econnector...
-@echo off 
 set SERVICE_NAME=econnector
 set CLASS_FILE=econnector-daemon.jar
 set INSTALL_HOME=C:\%SERVICE_NAME%
@@ -50,7 +49,6 @@ xcopy /E %SCRIPT_PATH%\files\* "%INSTALL_HOME%" >NUL 2>&1
 mklink "%USERPROFILE%"\Desktop\econnector "%INSTALL_HOME%"\econnector-ui.exe
 "%INSTALL_HOME%\prunsrv.exe" //DS//%SERVICE_NAME% >NUL 2>&1
 "%INSTALL_HOME%\prunsrv.exe" //IS//%SERVICE_NAME%
-@REM @echo on
-@REM "%INSTALL_HOME%\prunsrv.exe" //ES//%SERVICE_NAME%
+REM "%INSTALL_HOME%\prunsrv.exe" //ES//%SERVICE_NAME%
 
 :end
