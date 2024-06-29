@@ -22,8 +22,9 @@ jobs:
         with:
           repository: 'ebsoftwareservices/econnector-daemon'
           latest: true
-          fileName: 'econnector-daemon.jar'
+          fileName: 'econnector-daemon.zip'
           out-file-path: files
+          extract: true
           token: ${{ secrets.API_TOKEN_GITHUB }}
 
       - name: Download UI Release
@@ -38,8 +39,7 @@ jobs:
 
       - name: Build Zip File 
         run: |
-          mv files/dist/econnector-ui.exe files/econnector-ui.exe
-          rm -rf files/dist files/econnector-ui.zip .git* *.md
+          rm -rf files/econnector-*.zip .git* *.md
           zip -r econnector-installation.zip .
 
       - name: Create Release
@@ -65,4 +65,3 @@ jobs:
           asset_path: ./econnector-installation.zip
           asset_name: econnector-installation.zip
           asset_content_type: application/zip
-

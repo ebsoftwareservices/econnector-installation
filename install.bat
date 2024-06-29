@@ -22,9 +22,9 @@ set PR_JVM=%INSTALL_HOME%\jdk-21.0.2\bin\server\jvm.dll
 
 REM Service log configuration
 set PR_LOGPREFIX=%SERVICE_NAME%
-set PR_STDOUTPUT=auto
-set PR_STDERROR=auto
-set PR_LOGLEVEL=Info
+set PR_STDOUTPUT=stdout.txt
+set PR_STDERROR=stderr.txt
+set PR_LOGLEVEL=Error
 set PR_DESCRIPTION=%SERVICE_NAME%
 
 REM Startup configuration
