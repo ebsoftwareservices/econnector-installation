@@ -35,7 +35,8 @@ set PR_STARTMODE=jvm
 set PR_STARTCLASS=com.ebsoftwareservices.econnector.daemon.EconnectorDaemonOnWindows
 set PR_STARTMETHOD=windowsService
 set PR_STARTPARAMS=start
- 
+set PR_JVMOPTIONS=-Djar.dir=%INSTALL_HOME%
+
 REM Shutdown configuration
 set PR_STOPMODE=jvm
 set PR_STOPCLASS=com.ebsoftwareservices.econnector.daemon.EconnectorDaemonOnWindows
