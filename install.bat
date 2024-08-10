@@ -2,7 +2,7 @@ echo Installing Econnector...
 set SERVICE_NAME=econnector
 set CLASS_FILE=econnector-daemon.jar
 set INSTALL_HOME=C:\%SERVICE_NAME%
-set PR_LOGPATH=%INSTALL_HOME%\logs
+set PR_LOGPATH=%INSTALL_HOME%\procrun-logs
 SET SCRIPT_PATH=%~dp0
 
 if exist %PR_LOGPATH% (
@@ -22,8 +22,9 @@ set PR_JVM=%INSTALL_HOME%\jdk-21.0.2\bin\server\jvm.dll
 
 REM Service log configuration
 set PR_LOGPREFIX=%SERVICE_NAME%
-set PR_STDOUTPUT=stdout.txt
-set PR_STDERROR=stderr.txt
+set PR_STDOUTPUT=auto
+set PR_STDERROR=auto
+set PR_PIDFILE=procrun.pid
 set PR_LOGLEVEL=Error
 set PR_DESCRIPTION=%SERVICE_NAME%
 
