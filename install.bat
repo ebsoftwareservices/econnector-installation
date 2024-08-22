@@ -1,3 +1,30 @@
+@echo off
+:: BatchGotAdmin
+::-------------------------------------
+REM  --> Check for permissions
+>nul 2>&1 "%SYSTEMROOT%\system32\cacls.exe" "%SYSTEMROOT%\system32\config\system"
+
+REM --> If error flag set, we do not have admin.
+if '%errorlevel%' NEQ '0' (
+    echo Requesting administrative privileges...
+    goto UACPrompt
+) else ( goto gotAdmin )
+
+:UACPrompt
+    echo Set UAC = CreateObject^("Shell.Application"^) > "%temp%\getadmin.vbs"
+    set params = %*:"="
+    echo UAC.ShellExecute "cmd.exe", "/c %~s0 %params%", "", "runas", 1 >> "%temp%\getadmin.vbs"
+
+    "%temp%\getadmin.vbs"
+    del "%temp%\getadmin.vbs"
+    exit /B
+
+:gotAdmin
+    pushd "%CD%"
+    CD /D "%~dp0"
+::--------------------------------------
+
+@echo on
 echo Installing Econnector...
 set SERVICE_NAME=econnector
 set CLASS_FILE=econnector-daemon.jar
@@ -8,7 +35,7 @@ SET SCRIPT_PATH=%~dp0
 if exist %PR_LOGPATH% (
   echo There is a copy of %SERVICE_NAME% installed, please remove it first.
   pause
-  goto end
+  goto:eof
 )
 
 REM install java
@@ -53,4 +80,4 @@ mklink "%USERPROFILE%"\Desktop\econnector "%INSTALL_HOME%"\econnector-ui.exe
 "%INSTALL_HOME%\prunsrv.exe" //IS//%SERVICE_NAME%
 REM "%INSTALL_HOME%\prunsrv.exe" //ES//%SERVICE_NAME%
 
-:end
+:eof
