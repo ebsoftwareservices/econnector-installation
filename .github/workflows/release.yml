@@ -4,6 +4,14 @@ on:
     tags:
     - 'v*'
   workflow_dispatch:
+    inputs:
+      releaseTag:
+        description: 'Input the release tag'
+        required: true
+        type: string
+
+env:
+  RELEASE_TAG: ${{ contains(fromJSON('["push"]'), github.event_name) && github.ref || github.event.inputs.releaseTag }}
 
 jobs:
   release:
@@ -48,8 +56,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.API_TOKEN_GITHUB }}
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          tag_name: ${{ RELEASE_TAG }}
+          release_name: Release ${{ RELEASE_TAG }}
           body: |
             ${{ steps.Changelog.outputs.changelog }}
           draft: false
