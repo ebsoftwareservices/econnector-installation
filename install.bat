@@ -40,12 +40,12 @@ if exist %PR_LOGPATH% (
 
 REM install java
 if not exist jdk.zip (
-powershell -command "Start-BitsTransfer -Source https://download.java.net/java/GA/jdk21.0.2/f2283984656d49d69e91c558476027ac/13/GPL/openjdk-21.0.2_windows-x64_bin.zip -Destination jdk.zip.tmp"
+powershell -command "Start-BitsTransfer -Source https://corretto.aws/downloads/resources/25.0.2.10.1/amazon-corretto-25.0.2.10.1-windows-x64-jdk.zip -Destination jdk.zip.tmp"
 move /y jdk.zip.tmp jdk.zip
 )
 
 powershell -command "Expand-Archive jdk.zip %INSTALL_HOME%"
-set PR_JVM=%INSTALL_HOME%\jdk-21.0.2\bin\server\jvm.dll
+set PR_JVM=%INSTALL_HOME%\jdk25.0.2_10\bin\server\jvm.dll
 
 REM Service log configuration
 set PR_LOGPREFIX=%SERVICE_NAME%
