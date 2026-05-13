@@ -80,4 +80,23 @@ mklink "%USERPROFILE%"\Desktop\econnector "%INSTALL_HOME%"\econnector-ui.exe
 "%INSTALL_HOME%\prunsrv.exe" //IS//%SERVICE_NAME%
 REM "%INSTALL_HOME%\prunsrv.exe" //ES//%SERVICE_NAME%
 
+REM ---- On-demand privilege removal ----
+REM Predicate the credential/token files with an explicit ACL so the UI (running
+REM as a normal user) can overwrite them without UAC. SIDs are used instead of
+REM names to be locale-independent.
+REM   S-1-5-32-545 = BUILTIN\Users         (M = Modify)
+REM   S-1-5-32-544 = BUILTIN\Administrators (F = Full, for maintenance)
+REM   S-1-5-18     = NT AUTHORITY\SYSTEM    (F = Full, daemon runs as SYSTEM)
+type nul > "%INSTALL_HOME%\credentials.econnector"
+type nul > "%INSTALL_HOME%\tokens.econnector"
+icacls "%INSTALL_HOME%\credentials.econnector" /inheritance:r /grant *S-1-5-32-545:(M) *S-1-5-32-544:(F) *S-1-5-18:(F)
+icacls "%INSTALL_HOME%\tokens.econnector" /inheritance:r /grant *S-1-5-32-545:(M) *S-1-5-32-544:(F) *S-1-5-18:(F)
+
+REM Grant Interactive Users (IU) the right to start/stop the service so the UI
+REM does not need to elevate. The SDDL below sets only the DACL (D:); the SACL
+REM (audit) is intentionally omitted so sc.exe preserves the existing audit
+REM policy and we don't need SE_SECURITY_NAME at install time. ACEs are the
+REM service defaults with RP+WP (SERVICE_START + SERVICE_STOP) added to IU.
+sc sdset %SERVICE_NAME% "D:(A;;CCLCSWRPWPDTLOCRRC;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCLCSWRPWPLOCRRC;;;IU)(A;;CCLCSWLOCRRC;;;SU)"
+
 :eof
