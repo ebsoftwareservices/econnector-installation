@@ -44,7 +44,7 @@ jobs:
 
       - name: Build Zip File 
         run: |
-          rm -rf files/econnector-*.zip .git* *.md
+          rm -rf files/econnector-*.zip .git* *.md upgrade.bat
           zip -r econnector-installation.zip .
 
       - name: Create Release
