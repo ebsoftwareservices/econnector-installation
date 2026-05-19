@@ -44,7 +44,7 @@ powershell -command "Start-BitsTransfer -Source https://corretto.aws/downloads/r
 move /y jdk.zip.tmp jdk.zip
 )
 
-powershell -command "Expand-Archive jdk.zip %INSTALL_HOME%"
+powershell -command "Expand-Archive -Force jdk.zip %INSTALL_HOME%"
 set PR_JVM=%INSTALL_HOME%\jdk25.0.2_10\bin\server\jvm.dll
 
 REM Service log configuration
@@ -73,8 +73,8 @@ set PR_STOPPARAMS=stop
 
 REM Install service
 mkdir "%PR_LOGPATH%" >NUL 2>&1
-xcopy /E %SCRIPT_PATH%\*.bat "%INSTALL_HOME%" >NUL 2>&1
-xcopy /E %SCRIPT_PATH%\files\* "%INSTALL_HOME%" >NUL 2>&1
+xcopy /E /Y %SCRIPT_PATH%\*.bat "%INSTALL_HOME%" >NUL 2>&1
+xcopy /E /Y %SCRIPT_PATH%\files\* "%INSTALL_HOME%" >NUL 2>&1
 mklink "%USERPROFILE%"\Desktop\econnector "%INSTALL_HOME%"\econnector-ui.exe
 "%INSTALL_HOME%\prunsrv.exe" //DS//%SERVICE_NAME% >NUL 2>&1
 "%INSTALL_HOME%\prunsrv.exe" //IS//%SERVICE_NAME%

@@ -50,21 +50,21 @@ echo [1/4] Stopping econnector UI and service...
 taskkill /F /IM econnector-ui.exe >NUL 2>&1
 
 sc query %SERVICE_NAME% >NUL 2>&1
-if not errorlevel 1 (
-    sc stop %SERVICE_NAME% >NUL 2>&1
-    set /a __wait=0
-    :wait_stop
-    sc query %SERVICE_NAME% | findstr /C:"STOPPED" >NUL 2>&1
-    if not errorlevel 1 goto stopped
-    set /a __wait+=1
-    if !__wait! GEQ 30 (
-        echo WARN: timed out waiting for service to stop, continuing anyway.
-        goto stopped
-    )
-    timeout /t 1 /nobreak >NUL
-    goto wait_stop
-    :stopped
+if errorlevel 1 goto skip_stop
+sc stop %SERVICE_NAME% >NUL 2>&1
+set /a __wait=0
+:wait_stop
+sc query %SERVICE_NAME% | findstr /C:"STOPPED" >NUL 2>&1
+if not errorlevel 1 goto stopped
+set /a __wait+=1
+if !__wait! GEQ 30 (
+    echo WARN: timed out waiting for service to stop, continuing anyway.
+    goto stopped
 )
+timeout /t 1 /nobreak >NUL
+goto wait_stop
+:stopped
+:skip_stop
 
 REM ============================================================
 REM [2/4] Backup credentials/tokens, then uninstall existing copy
@@ -78,11 +78,14 @@ if exist "%INSTALL_HOME%\tokens.econnector"     copy /Y "%INSTALL_HOME%\tokens.e
 
 if exist "%INSTALL_HOME%\prunsrv.exe" "%INSTALL_HOME%\prunsrv.exe" //DS//%SERVICE_NAME%
 if exist "%USERPROFILE%\Desktop\econnector" del /Q "%USERPROFILE%\Desktop\econnector"
+
+REM Move CWD out of INSTALL_HOME so rmdir is not blocked by the current
+REM directory lock. The directory itself may still remain (e.g. because
+REM this script is running from inside it), which matches uninstall.bat's
+REM documented behaviour and is fine for install.bat as long as the
+REM procrun-logs subdir is gone.
+cd /d "%TEMP%"
 if exist "%INSTALL_HOME%" rmdir /s /q "%INSTALL_HOME%"
-if exist "%INSTALL_HOME%" (
-    echo ERROR: failed to remove %INSTALL_HOME% ^(files may still be in use^).
-    exit /B 1
-)
 
 REM ============================================================
 REM [3/4] Download the requested release package from GitHub
