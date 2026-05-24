@@ -14,7 +14,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Changelog
         uses: scottbrenner/generate-changelog-action@master
@@ -23,7 +23,7 @@ jobs:
           REPO: ${{ github.repository }}
 
       - name: Download Daemon Release
-        uses: robinraju/release-downloader@v1.10
+        uses: robinraju/release-downloader@v1
         with:
           repository: 'ebsoftwareservices/econnector-daemon'
           latest: true
@@ -33,7 +33,7 @@ jobs:
           token: ${{ secrets.API_TOKEN_GITHUB }}
 
       - name: Download UI Release
-        uses: robinraju/release-downloader@v1.10
+        uses: robinraju/release-downloader@v1
         with:
           repository: 'ebsoftwareservices/econnector-ui'
           latest: true
