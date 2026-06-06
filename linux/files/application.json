@@ -1,0 +1,14 @@
+{
+  "controllerHost": "https://econnector-controller.staging.smartdocflow.com",
+  "econnectorHubHost": "https://econnector-hub.staging.smartdocflow.com",
+  "sendingTargetS3Bucket": "stg-econnector-sending-eu-central-1-804338050068",
+  "receptionArchiveS3Bucket": "stg-econnector-reception-archive-eu-central-1-804338050068",
+  "webSocket": {
+    "endpoint": "wss://econnector-controller.staging.smartdocflow.com/ws",
+    "destination": "/user/topic/messages"
+  },
+  "identityProvider": {
+    "host": "https://accounts.staging.smartdocflow.com",
+    "client": "13jtn9qde0sk7k54l26q9pviqp"
+  }
+}

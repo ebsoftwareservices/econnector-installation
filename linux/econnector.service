@@ -1,0 +1,15 @@
+[Unit]
+Description=Econnector Daemon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=forking
+PIDFile=/opt/econnector/jsvc.pid
+ExecStart=/opt/econnector/jsvc -home /opt/econnector/jdk -cp /opt/econnector/econnector-daemon.jar -user econnector -pidfile /opt/econnector/jsvc.pid -outfile /opt/econnector/econnector-daemon-logs/jsvc.log -errfile /opt/econnector/econnector-daemon-logs/jsvc.err -Djar.dir=/opt/econnector com.ebsoftwareservices.econnector.daemon.EconnectorDaemonOnLinux
+ExecStop=/opt/econnector/jsvc -stop -pidfile /opt/econnector/jsvc.pid com.ebsoftwareservices.econnector.daemon.EconnectorDaemonOnLinux
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

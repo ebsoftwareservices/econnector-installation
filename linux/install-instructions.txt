@@ -1,0 +1,32 @@
+## Install
+
+Run `sudo ./install.sh` to install econnector into `/opt/econnector` and start the systemd service.
+
+## Configure Credentials
+
+After installation, run:
+
+  sudo ./configure-credentials.sh
+
+Enter the Client ID and Client Secret when prompted.
+
+## Service Management
+
+  systemctl status econnector
+  systemctl stop econnector
+  systemctl start econnector
+  systemctl restart econnector
+
+## Logs
+
+Check logs in `/opt/econnector/econnector-daemon-logs/`.
+
+## Upgrade
+
+Run `sudo ./upgrade.sh` to upgrade to the latest release, or pass a tag:
+
+  sudo ./upgrade.sh v1.2.3
+
+## Uninstall
+
+Run `sudo ./uninstall.sh` to remove the service and `/opt/econnector`.
