@@ -74,7 +74,7 @@ Separate matrix job (`ubuntu-latest` + `ubuntu-24.04-arm`) compiles jsvc and upl
 One-line install (latest release):
 
 ```shell
-curl -fsSL https://raw.githubusercontent.com/ebsoftwareservices/econnector-installation/main/linux/install-from-release.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/ebsoftwareservices/econnector-installation/refs/heads/main/linux/install-from-release.sh | sudo bash
 ```
 
 See [`linux/install-instructions.txt`](linux/install-instructions.txt) for tagged installs and manual steps.

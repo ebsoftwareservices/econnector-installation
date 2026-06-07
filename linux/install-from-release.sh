@@ -5,8 +5,8 @@
 #   sudo ./install-from-release.sh v1.2.3    # specific tag
 #
 # One-line install:
-#   curl -fsSL https://raw.githubusercontent.com/ebsoftwareservices/econnector-installation/main/linux/install-from-release.sh | sudo bash
-#   curl -fsSL https://raw.githubusercontent.com/ebsoftwareservices/econnector-installation/main/linux/install-from-release.sh | sudo bash -s -- v1.2.3
+#   curl -fsSL https://raw.githubusercontent.com/ebsoftwareservices/econnector-installation/refs/heads/main/linux/install-from-release.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/ebsoftwareservices/econnector-installation/refs/heads/main/linux/install-from-release.sh | sudo bash -s -- v1.2.3
 
 set -eu
 

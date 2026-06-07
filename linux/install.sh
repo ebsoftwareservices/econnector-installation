@@ -36,8 +36,10 @@ for file in econnector-daemon.jar econnector-daemon-keysafe.jar application.json
 done
 
 cp "${SCRIPT_DIR}/configure-credentials.sh" "${INSTALL_HOME}/"
+cp "${SCRIPT_DIR}/uninstall.sh" "${INSTALL_HOME}/"
+cp "${SCRIPT_DIR}/upgrade.sh" "${INSTALL_HOME}/"
 cp "${SCRIPT_DIR}/common.sh" "${INSTALL_HOME}/"
-chmod 755 "${INSTALL_HOME}/configure-credentials.sh"
+chmod 755 "${INSTALL_HOME}/configure-credentials.sh" "${INSTALL_HOME}/uninstall.sh" "${INSTALL_HOME}/upgrade.sh"
 
 install_corretto "$ARCH"
 ensure_econnector_user
@@ -60,6 +62,10 @@ echo
 echo "Econnector installed to ${INSTALL_HOME}."
 echo "Next step: configure credentials with"
 echo "  sudo ${INSTALL_HOME}/configure-credentials.sh"
+echo
+echo "Upgrade or uninstall later with:"
+echo "  sudo ${INSTALL_HOME}/upgrade.sh"
+echo "  sudo ${INSTALL_HOME}/uninstall.sh"
 echo
 echo "Check service status with:"
 echo "  systemctl status ${SERVICE_NAME}"

@@ -2,11 +2,11 @@
 
 Latest release:
 
-  curl -fsSL https://raw.githubusercontent.com/ebsoftwareservices/econnector-installation/main/linux/install-from-release.sh | sudo bash
+  curl -fsSL https://raw.githubusercontent.com/ebsoftwareservices/econnector-installation/refs/heads/main/linux/install-from-release.sh | sudo bash
 
 Specific release tag:
 
-  curl -fsSL https://raw.githubusercontent.com/ebsoftwareservices/econnector-installation/main/linux/install-from-release.sh | sudo bash -s -- v1.2.3
+  curl -fsSL https://raw.githubusercontent.com/ebsoftwareservices/econnector-installation/refs/heads/main/linux/install-from-release.sh | sudo bash -s -- v1.2.3
 
 After installation, configure credentials (see below).
 
@@ -37,16 +37,12 @@ Check logs in `/opt/econnector/econnector-daemon-logs/`.
 
 ## Upgrade
 
-If installed from a tarball, run from the extracted package directory:
+  sudo /opt/econnector/upgrade.sh
 
-  sudo ./upgrade.sh
+Or pass a release tag:
 
-Or pass a tag:
-
-  sudo ./upgrade.sh v1.2.3
+  sudo /opt/econnector/upgrade.sh v1.2.3
 
 ## Uninstall
 
-From an extracted package directory:
-
-  sudo ./uninstall.sh
+  sudo /opt/econnector/uninstall.sh
