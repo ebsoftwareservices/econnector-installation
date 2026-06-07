@@ -1,107 +1,86 @@
-# Econnector installation
+# econnector-installation
 
-This repo is used for econnector installation.
+Developer repo for packaging Econnector installers. End-user instructions live in `windows/install-instructions.txt` and `linux/install-instructions.txt`.
 
-## Windows
+## Repository layout
 
-Put all the needed files as the structure you want to keep on user's laptop in `files` dir. The install script will copy them to `C:\econnector`.
-
-Modify `install.bat` and `uninstall.bat` to update the installation config. Do not put special characters or spaces in `SERVICE_NAME`; it is used as a directory name and Apache Commons Daemon has issues reading such paths.
-
-The install script also manages JVM installation, so Java does not need to be pre-installed on the system.
-
-## Linux
-
-Supports **amd64** and **arm64** on systemd-based distros (yum/dnf and apt families).
-
-### Prerequisites
-
-- root/sudo access
-- systemd
-- curl or wget
-- Supported architecture: x86_64 (amd64) or aarch64 (arm64)
-
-### Install
-
-Extract `econnector-installation-linux.tar.gz`, then run:
-
-```shell
-cd econnector-installation-linux
-sudo ./install.sh
-sudo ./configure-credentials.sh
+```
+econnector-installation/
+├── windows/                 # Windows installer source → econnector-installation.zip
+│   ├── install.bat
+│   ├── uninstall.bat
+│   ├── upgrade.bat
+│   ├── install-instructions.txt
+│   └── files/               # Static + CI-staged release artifacts
+│       ├── prunsrv.exe      # Apache Procrun (committed manually)
+│       └── …                # econnector-daemon.jar, application.json, econnector-ui.exe (from CI)
+├── linux/                   # Linux installer source → econnector-installation-linux.tar.gz
+│   ├── install.sh
+│   ├── configure-credentials.sh
+│   ├── uninstall.sh
+│   ├── upgrade.sh
+│   ├── common.sh
+│   ├── econnector.service
+│   ├── install-instructions.txt
+│   ├── bin/                 # jsvc-amd64, jsvc-arm64 (built in CI)
+│   └── files/               # econnector-daemon.jar, keysafe jar, application.json (from CI)
+└── vagrant/                 # Local Linux install tests (see vagrant/README.md)
 ```
 
-`install.sh` downloads Amazon Corretto 25, installs the daemon under `/opt/econnector`, and starts the systemd service.
+Windows and Linux release packages are built from their respective directories. The extracted zip/tar contents are what users run on the target machine (scripts at the package root).
 
-`configure-credentials.sh` prompts for Client ID and Client Secret, encrypts them with `econnector-daemon-keysafe.jar`, and writes `/opt/econnector/credentials.econnector`.
+## Prerequisites before release
 
-### Service management
+Publish dependent repos first (workflow uses `latest`):
 
-```shell
-systemctl status econnector
-systemctl restart econnector
-```
+1. [econnector-daemon](https://github.com/ebsoftwareservices/econnector-daemon) → `econnector-daemon.zip`
+2. [econnector-daemon-keysafe](https://github.com/ebsoftwareservices/econnector-daemon-keysafe) → `econnector-daemon-keysafe.zip` (Linux only)
+3. [econnector-ui](https://github.com/ebsoftwareservices/econnector-ui) → `econnector-ui.zip` (Windows only)
 
-Logs: `/opt/econnector/econnector-daemon-logs/`
+Ensure `windows/files/` contains static Windows-only binaries such as `prunsrv.exe` before releasing.
 
-### Upgrade
+## Release workflow
 
-```shell
-sudo ./upgrade.sh          # latest release
-sudo ./upgrade.sh v1.2.3     # specific tag
-```
+Run **Release the application** (`.github/workflows/release.yml`) with a release tag.
 
-### Uninstall
+The `release` job runs at the **repository root** (`$GITHUB_WORKSPACE` after checkout):
 
-```shell
-sudo ./uninstall.sh
-```
+| Step | Working directory | What it does |
+|------|-------------------|--------------|
+| Checkout | repo root | Provides `linux/*.sh`, `windows/*.bat` |
+| Download jsvc artifacts | `linux/bin/` | amd64 + arm64 jsvc from matrix job |
+| Download daemon/keysafe | `linux/files/` | Linux payloads |
+| Download daemon/UI | `windows/files/` | Windows payloads |
+| **Build Linux Tarball** | repo root | `tar -czf … -C linux .` |
+| **Build Windows Zip** | repo root | `(cd windows && zip -r ../econnector-installation.zip .)` |
 
-See [`linux/install-instructions.txt`](linux/install-instructions.txt) for more details.
+Outputs:
 
-## Release order
+- `econnector-installation.zip` — Windows
+- `econnector-installation-linux.tar.gz` — Linux
 
-Before the first Linux installation release, publish:
+### jsvc build job
 
-1. `econnector-daemon` release (`econnector-daemon.zip`)
-2. `econnector-daemon-keysafe` release (`econnector-daemon-keysafe.zip`)
-3. `econnector-installation` release (Windows zip + Linux tar.gz)
+Separate matrix job (`ubuntu-latest` + `ubuntu-24.04-arm`) compiles jsvc and uploads artifacts; the release job merges them into `linux/bin/`.
 
-## Local Linux testing (Vagrant)
+## Windows packaging notes
 
-Use Vagrant to run full systemd install tests on real Linux VMs (apt and yum/dnf).
+- `install.bat` copies `windows/files/*` to `C:\econnector` and registers the Procrun service.
+- JDK is downloaded at install time (Corretto 25 x64); not bundled in the zip.
+- Do not use spaces or special characters in `SERVICE_NAME` (used as directory name; Procrun limitation).
 
-### Prerequisites
+## Linux packaging notes
 
-- [Vagrant](https://www.vagrantup.com/)
-- [VirtualBox](https://www.oracle.com/virtualization/technologies/vm/downloads/virtualbox-downloads.html) **7.2+** (Apple Silicon: choose the Apple Silicon host package)
-- Sibling repos checked out: `econnector-daemon`, `econnector-daemon-keysafe`
+- `install.sh` picks `bin/jsvc-$ARCH`, downloads Corretto 25 for the guest architecture, and installs systemd unit to `/opt/econnector`.
+- `configure-credentials.sh` encrypts Client ID / Secret via `econnector-daemon-keysafe.jar`.
+- Supports **amd64** and **arm64**.
 
-See [`vagrant/README.md`](vagrant/README.md) for setup notes. No extra Vagrant plugin is required.
+## Local Linux testing
 
-### Run
+See [`vagrant/README.md`](vagrant/README.md). Quick start:
 
 ```shell
 cd vagrant
-./prepare-local-package.sh   # builds jars into ../linux/files
-vagrant up ubuntu24           # apt-based (Ubuntu 24.04)
-vagrant up rocky9             # dnf-based (Rocky 9)
-vagrant ssh ubuntu24 -c 'systemctl status econnector'
-vagrant destroy -f
-```
-
-The guest provisioner will:
-
-1. Compile `jsvc` for the VM architecture (if not already present)
-2. Run `install.sh` and `configure-credentials.sh`
-3. Verify `systemctl status econnector`
-
-On Apple Silicon Macs, VMs run **arm64** natively. On Intel Macs, VMs run **amd64** natively.
-
-For automated credential setup (Vagrant/CI), set:
-
-```shell
-export EC_CLIENT_ID=...
-export EC_CLIENT_SECRET=...
-sudo ./configure-credentials.sh
+./prepare-local-package.sh
+vagrant up ubuntu24
 ```

@@ -66,7 +66,7 @@ jobs:
           path: linux/bin
           merge-multiple: true
 
-      - name: Download Daemon Release
+      - name: Download Daemon Release for Linux
         uses: robinraju/release-downloader@v1
         with:
           repository: 'ebsoftwareservices/econnector-daemon'
@@ -86,25 +86,35 @@ jobs:
           extract: true
           token: ${{ secrets.API_TOKEN_GITHUB }}
 
-      - name: Download UI Release
+      - name: Download Daemon Release for Windows
+        uses: robinraju/release-downloader@v1
+        with:
+          repository: 'ebsoftwareservices/econnector-daemon'
+          latest: true
+          fileName: 'econnector-daemon.zip'
+          out-file-path: windows/files
+          extract: true
+          token: ${{ secrets.API_TOKEN_GITHUB }}
+
+      - name: Download UI Release for Windows
         uses: robinraju/release-downloader@v1
         with:
           repository: 'ebsoftwareservices/econnector-ui'
           latest: true
           fileName: 'econnector-ui.zip'
-          out-file-path: files
+          out-file-path: windows/files
           extract: true
           token: ${{ secrets.API_TOKEN_GITHUB }}
-
-      - name: Build Windows Zip File
-        run: |
-          rm -rf files/econnector-*.zip .git* *.md upgrade.bat linux
-          zip -r econnector-installation.zip .
 
       - name: Build Linux Tarball
         run: |
           chmod +x linux/*.sh
           tar -czf econnector-installation-linux.tar.gz -C linux .
+
+      - name: Build Windows Zip File
+        run: |
+          rm -f windows/files/econnector-*.zip
+          (cd windows && zip -r ../econnector-installation.zip .)
 
       - name: Create Release
         id: create_release
