@@ -42,7 +42,7 @@ jobs:
           cp jsvc "$GITHUB_WORKSPACE/linux/bin/jsvc-${{ matrix.arch }}"
 
       - name: Upload jsvc binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: jsvc-${{ matrix.arch }}
           path: linux/bin/jsvc-${{ matrix.arch }}
@@ -50,6 +50,8 @@ jobs:
   release:
     needs: build-jsvc
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v6
 
@@ -60,7 +62,7 @@ jobs:
           REPO: ${{ github.repository }}
 
       - name: Download jsvc binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: jsvc-*
           path: linux/bin
@@ -117,34 +119,16 @@ jobs:
           (cd windows && zip -r ../econnector-installation.zip .)
 
       - name: Create Release
-        id: create_release
-        uses: actions/create-release@latest
+        uses: softprops/action-gh-release@v3
         env:
           GITHUB_TOKEN: ${{ secrets.API_TOKEN_GITHUB }}
         with:
           tag_name: ${{ env.RELEASE_TAG }}
-          release_name: Release ${{ env.RELEASE_TAG }}
+          name: Release ${{ env.RELEASE_TAG }}
           body: |
             ${{ steps.Changelog.outputs.changelog }}
           draft: false
           prerelease: false
-
-      - name: Upload Windows Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.API_TOKEN_GITHUB }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./econnector-installation.zip
-          asset_name: econnector-installation.zip
-          asset_content_type: application/zip
-
-      - name: Upload Linux Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.API_TOKEN_GITHUB }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./econnector-installation-linux.tar.gz
-          asset_name: econnector-installation-linux.tar.gz
-          asset_content_type: application/gzip
+          files: |
+            econnector-installation.zip
+            econnector-installation-linux.tar.gz
