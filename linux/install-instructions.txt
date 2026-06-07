@@ -1,12 +1,26 @@
-## Install
+## One-line install
 
-Run `sudo ./install.sh` to install econnector into `/opt/econnector` and start the systemd service.
+Latest release:
+
+  curl -fsSL https://raw.githubusercontent.com/ebsoftwareservices/econnector-installation/main/linux/install-from-release.sh | sudo bash
+
+Specific release tag:
+
+  curl -fsSL https://raw.githubusercontent.com/ebsoftwareservices/econnector-installation/main/linux/install-from-release.sh | sudo bash -s -- v1.2.3
+
+After installation, configure credentials (see below).
+
+## Manual install
+
+Download `econnector-installation-linux.tar.gz` from GitHub Releases, extract it, then run:
+
+  sudo ./install.sh
 
 ## Configure Credentials
 
 After installation, run:
 
-  sudo ./configure-credentials.sh
+  sudo /opt/econnector/configure-credentials.sh
 
 Enter the Client ID and Client Secret when prompted.
 
@@ -23,10 +37,16 @@ Check logs in `/opt/econnector/econnector-daemon-logs/`.
 
 ## Upgrade
 
-Run `sudo ./upgrade.sh` to upgrade to the latest release, or pass a tag:
+If installed from a tarball, run from the extracted package directory:
+
+  sudo ./upgrade.sh
+
+Or pass a tag:
 
   sudo ./upgrade.sh v1.2.3
 
 ## Uninstall
 
-Run `sudo ./uninstall.sh` to remove the service and `/opt/econnector`.
+From an extracted package directory:
+
+  sudo ./uninstall.sh

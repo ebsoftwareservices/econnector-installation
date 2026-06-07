@@ -71,6 +71,14 @@ Separate matrix job (`ubuntu-latest` + `ubuntu-24.04-arm`) compiles jsvc and upl
 
 ## Linux packaging notes
 
+One-line install (latest release):
+
+```shell
+curl -fsSL https://raw.githubusercontent.com/ebsoftwareservices/econnector-installation/main/linux/install-from-release.sh | sudo bash
+```
+
+See [`linux/install-instructions.txt`](linux/install-instructions.txt) for tagged installs and manual steps.
+
 - `install.sh` picks `bin/jsvc-$ARCH`, downloads Corretto 25 for the guest architecture, and installs systemd unit to `/opt/econnector`.
 - `configure-credentials.sh` encrypts Client ID / Secret via `econnector-daemon-keysafe.jar`.
 - Supports **amd64** and **arm64**.
