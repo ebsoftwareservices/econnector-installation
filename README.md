@@ -6,7 +6,7 @@ Developer repo for packaging Econnector installers. End-user instructions live i
 
 ```
 econnector-installation/
-├── windows/                 # Windows installer source → econnector-installation.zip
+├── windows/                 # Windows installer source → econnector-installation-win.zip
 │   ├── install.bat
 │   ├── uninstall.bat
 │   ├── upgrade.bat
@@ -51,11 +51,11 @@ The `release` job runs at the **repository root** (`$GITHUB_WORKSPACE` after che
 | Download daemon/keysafe | `linux/files/` | Linux payloads |
 | Download daemon/UI | `windows/files/` | Windows payloads |
 | **Build Linux Tarball** | repo root | `tar -czf … -C linux .` |
-| **Build Windows Zip** | repo root | `(cd windows && zip -r ../econnector-installation.zip .)` |
+| **Build Windows Zip** | repo root | `(cd windows && zip -r ../econnector-installation-win.zip .)` |
 
 Outputs:
 
-- `econnector-installation.zip` — Windows
+- `econnector-installation-win.zip` — Windows
 - `econnector-installation-linux.tar.gz` — Linux
 
 ### jsvc build job

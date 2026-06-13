@@ -116,7 +116,7 @@ jobs:
       - name: Build Windows Zip File
         run: |
           rm -f windows/files/econnector-*.zip
-          (cd windows && zip -r ../econnector-installation.zip .)
+          (cd windows && zip -r ../econnector-installation-win.zip .)
 
       - name: Create Release
         uses: softprops/action-gh-release@v3
@@ -130,5 +130,5 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            econnector-installation.zip
+            econnector-installation-win.zip
             econnector-installation-linux.tar.gz

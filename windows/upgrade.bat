@@ -103,8 +103,8 @@ if "%RELEASE_TAG%"=="" (
     echo Resolved latest tag: !RELEASE_TAG!
 )
 
-set ZIP_URL=https://github.com/%REPO%/releases/download/!RELEASE_TAG!/econnector-installation.zip
-set ZIP_PATH=%PKG_DIR%\econnector-installation.zip
+set ZIP_URL=https://github.com/%REPO%/releases/download/!RELEASE_TAG!/econnector-installation-win.zip
+set ZIP_PATH=%PKG_DIR%\econnector-installation-win.zip
 
 powershell -NoProfile -Command "Start-BitsTransfer -Source '!ZIP_URL!' -Destination '!ZIP_PATH!'"
 if errorlevel 1 (
