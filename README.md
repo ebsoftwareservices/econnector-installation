@@ -11,9 +11,8 @@ econnector-installation/
 │   ├── uninstall.bat
 │   ├── upgrade.bat
 │   ├── install-instructions.txt
-│   └── files/               # Static + CI-staged release artifacts
-│       ├── prunsrv.exe      # Apache Procrun (committed manually)
-│       └── …                # econnector-daemon.jar, application.json, econnector-ui.exe (from CI)
+│   ├── bin/                 # prunsrv-amd64/arm64, prunmgr-amd64/arm64 (Procrun 1.6.1)
+│   └── files/               # econnector-daemon.jar, application.json, econnector-ui.exe (from CI)
 ├── linux/                   # Linux installer source → econnector-installation-linux.tar.gz
 │   ├── install.sh
 │   ├── configure-credentials.sh
@@ -37,7 +36,7 @@ Publish dependent repos first (workflow uses `latest`):
 2. [econnector-daemon-keysafe](https://github.com/ebsoftwareservices/econnector-daemon-keysafe) → `econnector-daemon-keysafe.zip` (Linux only)
 3. [econnector-ui](https://github.com/ebsoftwareservices/econnector-ui) → `econnector-ui.zip` (Windows only)
 
-Ensure `windows/files/` contains static Windows-only binaries such as `prunsrv.exe` before releasing.
+Ensure `windows/bin/` contains Procrun binaries from Apache Commons Daemon 1.6.1 before releasing.
 
 ## Release workflow
 
@@ -65,8 +64,8 @@ Separate matrix job (`ubuntu-latest` + `ubuntu-24.04-arm`) compiles jsvc and upl
 
 ## Windows packaging notes
 
-- `install.bat` copies `windows/files/*` to `C:\econnector` and registers the Procrun service.
-- JDK is downloaded at install time (Corretto 25 x64); not bundled in the zip.
+- `install.bat` detects **amd64** or **arm64**, copies `bin/prunsrv-$ARCH` and optional `bin/prunmgr-$ARCH` into `C:\econnector\` as `prunsrv.exe` / `prunmgr.exe`, then registers the service against those paths (same as before).
+- `prunmgr-amd64.exe` is sourced from the Apache zip root (32-bit WOW64); only the filename reflects host arch, matching Linux's `$ARCH` convention.
 - Do not use spaces or special characters in `SERVICE_NAME` (used as directory name; Procrun limitation).
 
 ## Linux packaging notes

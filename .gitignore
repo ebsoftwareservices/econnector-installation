@@ -3,6 +3,8 @@
 .DS_Store
 .idea
 
+commons-daemon-*-bin-windows
+
 vagrant
 Vagrantfile
 credentials.json

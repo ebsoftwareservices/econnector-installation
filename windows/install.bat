@@ -32,20 +32,59 @@ set INSTALL_HOME=C:\%SERVICE_NAME%
 set PR_LOGPATH=%INSTALL_HOME%\procrun-logs
 SET SCRIPT_PATH=%~dp0
 
+REM Detect CPU architecture (amd64 or arm64)
+set EC_ARCH=
+if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" set EC_ARCH=arm64
+if /i "%PROCESSOR_ARCHITECTURE%"=="AMD64" set EC_ARCH=amd64
+if /i "%PROCESSOR_ARCHITEW6432%"=="ARM64" set EC_ARCH=arm64
+if /i "%PROCESSOR_ARCHITEW6432%"=="AMD64" if "%EC_ARCH%"=="" set EC_ARCH=amd64
+if "%EC_ARCH%"=="" (
+  echo Unsupported CPU architecture: %PROCESSOR_ARCHITECTURE%
+  pause
+  goto:eof
+)
+echo Installing for %EC_ARCH%...
+
 if exist %PR_LOGPATH% (
   echo There is a copy of %SERVICE_NAME% installed, please remove it first.
   pause
   goto:eof
 )
 
+if not exist "%SCRIPT_PATH%\bin\prunsrv-%EC_ARCH%.exe" (
+  echo Missing Procrun service binary: bin\prunsrv-%EC_ARCH%.exe
+  pause
+  goto:eof
+)
+
 REM install java
+if /i "%EC_ARCH%"=="arm64" (
+  set JDK_URL=https://corretto.aws/downloads/resources/25.0.2.10.1/amazon-corretto-25.0.2.10.1-windows-aarch64-jdk.zip
+) else (
+  set JDK_URL=https://corretto.aws/downloads/resources/25.0.2.10.1/amazon-corretto-25.0.2.10.1-windows-x64-jdk.zip
+)
+
 if not exist jdk.zip (
-powershell -command "Start-BitsTransfer -Source https://corretto.aws/downloads/resources/25.0.2.10.1/amazon-corretto-25.0.2.10.1-windows-x64-jdk.zip -Destination jdk.zip.tmp"
+powershell -command "Start-BitsTransfer -Source %JDK_URL% -Destination jdk.zip.tmp"
 move /y jdk.zip.tmp jdk.zip
 )
 
+if not exist "%INSTALL_HOME%" mkdir "%INSTALL_HOME%"
 powershell -command "Expand-Archive -Force jdk.zip %INSTALL_HOME%"
-set PR_JVM=%INSTALL_HOME%\jdk25.0.2_10\bin\server\jvm.dll
+
+set JDK_DIR=
+for /d %%I in ("%INSTALL_HOME%\jdk*") do set JDK_DIR=%%~fI
+if "%JDK_DIR%"=="" (
+  echo Failed to locate extracted JDK directory under %INSTALL_HOME%.
+  pause
+  goto:eof
+)
+set PR_JVM=%JDK_DIR%\bin\server\jvm.dll
+if not exist "%PR_JVM%" (
+  echo Failed to locate JVM: %PR_JVM%
+  pause
+  goto:eof
+)
 
 REM Service log configuration
 set PR_LOGPREFIX=%SERVICE_NAME%
@@ -74,8 +113,12 @@ set PR_STOPPARAMS=stop
 REM Install service
 mkdir "%PR_LOGPATH%" >NUL 2>&1
 xcopy /E /Y %SCRIPT_PATH%\*.bat "%INSTALL_HOME%" >NUL 2>&1
-xcopy /E /Y %SCRIPT_PATH%\files\* "%INSTALL_HOME%" >NUL 2>&1
-mklink "%USERPROFILE%"\Desktop\econnector "%INSTALL_HOME%"\econnector-ui.exe
+if exist "%SCRIPT_PATH%\files\*.jar" xcopy /Y %SCRIPT_PATH%\files\*.jar "%INSTALL_HOME%\" >NUL 2>&1
+if exist "%SCRIPT_PATH%\files\*.json" xcopy /Y %SCRIPT_PATH%\files\*.json "%INSTALL_HOME%\" >NUL 2>&1
+if exist "%SCRIPT_PATH%\files\econnector-ui.exe" copy /Y "%SCRIPT_PATH%\files\econnector-ui.exe" "%INSTALL_HOME%\" >NUL 2>&1
+copy /Y "%SCRIPT_PATH%\bin\prunsrv-%EC_ARCH%.exe" "%INSTALL_HOME%\prunsrv.exe" >NUL 2>&1
+if exist "%SCRIPT_PATH%\bin\prunmgr-%EC_ARCH%.exe" copy /Y "%SCRIPT_PATH%\bin\prunmgr-%EC_ARCH%.exe" "%INSTALL_HOME%\prunmgr.exe" >NUL 2>&1
+if exist "%INSTALL_HOME%\econnector-ui.exe" mklink "%USERPROFILE%"\Desktop\econnector "%INSTALL_HOME%"\econnector-ui.exe
 "%INSTALL_HOME%\prunsrv.exe" //DS//%SERVICE_NAME% >NUL 2>&1
 "%INSTALL_HOME%\prunsrv.exe" //IS//%SERVICE_NAME%
 REM "%INSTALL_HOME%\prunsrv.exe" //ES//%SERVICE_NAME%
