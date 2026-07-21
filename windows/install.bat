@@ -45,10 +45,19 @@ if "%EC_ARCH%"=="" (
 )
 echo Installing for %EC_ARCH%...
 
-if exist %PR_LOGPATH% (
-  echo There is a copy of %SERVICE_NAME% installed, please remove it first.
-  pause
-  goto:eof
+if exist "%PR_LOGPATH%" (
+  echo Existing eConnector installation detected. Repairing credential storage...
+  if not exist "%SCRIPT_PATH%\repair-credentials.bat" (
+    echo Missing repair script: repair-credentials.bat
+    exit /b 1
+  )
+  if /I not "%SCRIPT_PATH%"=="%INSTALL_HOME%\" (
+    copy /Y "%SCRIPT_PATH%\repair-credentials.bat" "%INSTALL_HOME%\repair-credentials.bat" >NUL 2>&1
+    if errorlevel 1 exit /b 1
+  )
+  call "%INSTALL_HOME%\repair-credentials.bat"
+  if errorlevel 1 exit /b 1
+  exit /b 0
 )
 
 if not exist "%SCRIPT_PATH%\bin\prunsrv-%EC_ARCH%.exe" (
@@ -112,7 +121,15 @@ set PR_STOPPARAMS=stop
 
 REM Install service
 mkdir "%PR_LOGPATH%" >NUL 2>&1
-xcopy /E /Y %SCRIPT_PATH%\*.bat "%INSTALL_HOME%" >NUL 2>&1
+xcopy /E /Y "%SCRIPT_PATH%*.bat" "%INSTALL_HOME%\" >NUL 2>&1
+if errorlevel 1 (
+  echo ERROR: Failed to copy installer scripts to %INSTALL_HOME%.
+  exit /b 1
+)
+if not exist "%INSTALL_HOME%\repair-credentials.bat" (
+  echo ERROR: Missing installed repair script: repair-credentials.bat
+  exit /b 1
+)
 if exist "%SCRIPT_PATH%\files\*.jar" xcopy /Y %SCRIPT_PATH%\files\*.jar "%INSTALL_HOME%\" >NUL 2>&1
 if exist "%SCRIPT_PATH%\files\*.json" xcopy /Y %SCRIPT_PATH%\files\*.json "%INSTALL_HOME%\" >NUL 2>&1
 if exist "%SCRIPT_PATH%\files\econnector-ui.exe" copy /Y "%SCRIPT_PATH%\files\econnector-ui.exe" "%INSTALL_HOME%\" >NUL 2>&1
@@ -127,13 +144,17 @@ REM ---- On-demand privilege removal ----
 REM Predicate the credential/token files with an explicit ACL so the UI (running
 REM as a normal user) can overwrite them without UAC. SIDs are used instead of
 REM names to be locale-independent.
-REM   S-1-5-32-545 = BUILTIN\Users         (M = Modify)
+REM   S-1-5-32-545 = BUILTIN\Users         (R,W = read/write without delete)
 REM   S-1-5-32-544 = BUILTIN\Administrators (F = Full, for maintenance)
 REM   S-1-5-18     = NT AUTHORITY\SYSTEM    (F = Full, daemon runs as SYSTEM)
 type nul > "%INSTALL_HOME%\credentials.econnector"
+if errorlevel 1 goto install_failed
 type nul > "%INSTALL_HOME%\tokens.econnector"
-icacls "%INSTALL_HOME%\credentials.econnector" /inheritance:r /grant *S-1-5-32-545:(M) *S-1-5-32-544:(F) *S-1-5-18:(F)
-icacls "%INSTALL_HOME%\tokens.econnector" /inheritance:r /grant *S-1-5-32-545:(M) *S-1-5-32-544:(F) *S-1-5-18:(F)
+if errorlevel 1 goto install_failed
+icacls "%INSTALL_HOME%\credentials.econnector" /inheritance:r /grant:r *S-1-5-32-545:RW *S-1-5-32-544:F *S-1-5-18:F
+if errorlevel 1 goto install_failed
+icacls "%INSTALL_HOME%\tokens.econnector" /inheritance:r /grant:r *S-1-5-32-545:RW *S-1-5-32-544:F *S-1-5-18:F
+if errorlevel 1 goto install_failed
 
 REM Grant Interactive Users (IU) the right to start/stop the service so the UI
 REM does not need to elevate. The SDDL below sets only the DACL (D:); the SACL
@@ -141,5 +162,12 @@ REM (audit) is intentionally omitted so sc.exe preserves the existing audit
 REM policy and we don't need SE_SECURITY_NAME at install time. ACEs are the
 REM service defaults with RP+WP (SERVICE_START + SERVICE_STOP) added to IU.
 sc sdset %SERVICE_NAME% "D:(A;;CCLCSWRPWPDTLOCRRC;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCLCSWRPWPLOCRRC;;;IU)(A;;CCLCSWLOCRRC;;;SU)"
+if errorlevel 1 goto install_failed
+
+exit /b 0
+
+:install_failed
+echo ERROR: Failed to create writable credential storage.
+exit /b 1
 
 :eof
