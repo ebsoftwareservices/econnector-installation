@@ -6,9 +6,18 @@ on:
         description: 'Input the release tag'
         required: true
         type: string
+      releaseEnvironment:
+        description: 'Environment to package'
+        required: true
+        type: choice
+        options:
+          - prod
+          - staging
 
 env:
   RELEASE_TAG: ${{ github.event.inputs.releaseTag }}
+  RELEASE_ENVIRONMENT: ${{ github.event.inputs.releaseEnvironment }}
+  DAEMON_RELEASE_FILE: econnector-daemon-${{ github.event.inputs.releaseEnvironment }}.zip
 
 jobs:
   build-jsvc:
@@ -68,12 +77,17 @@ jobs:
           path: linux/bin
           merge-multiple: true
 
+      - name: Prepare environment-specific payload directories
+        run: |
+          rm -rf linux/files windows/files
+          mkdir -p linux/files windows/files
+
       - name: Download Daemon Release for Linux
         uses: robinraju/release-downloader@v1
         with:
           repository: 'ebsoftwareservices/econnector-daemon'
           latest: true
-          fileName: 'econnector-daemon.zip'
+          fileName: ${{ env.DAEMON_RELEASE_FILE }}
           out-file-path: linux/files
           extract: true
           token: ${{ secrets.API_TOKEN_GITHUB }}
@@ -93,7 +107,7 @@ jobs:
         with:
           repository: 'ebsoftwareservices/econnector-daemon'
           latest: true
-          fileName: 'econnector-daemon.zip'
+          fileName: ${{ env.DAEMON_RELEASE_FILE }}
           out-file-path: windows/files
           extract: true
           token: ${{ secrets.API_TOKEN_GITHUB }}
@@ -111,6 +125,7 @@ jobs:
       - name: Build Linux Tarball
         run: |
           chmod +x linux/*.sh
+          rm -f linux/files/econnector-*.zip
           tar -czf econnector-installation-linux.tar.gz -C linux .
 
       - name: Build Windows Zip File
@@ -124,11 +139,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.API_TOKEN_GITHUB }}
         with:
           tag_name: ${{ env.RELEASE_TAG }}
-          name: Release ${{ env.RELEASE_TAG }}
+          name: ${{ env.RELEASE_ENVIRONMENT }} release ${{ env.RELEASE_TAG }}
           body: |
             ${{ steps.Changelog.outputs.changelog }}
           draft: false
-          prerelease: false
+          prerelease: ${{ env.RELEASE_ENVIRONMENT == 'staging' }}
           files: |
             econnector-installation-win.zip
             econnector-installation-linux.tar.gz
