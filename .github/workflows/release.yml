@@ -6,18 +6,9 @@ on:
         description: 'Input the release tag'
         required: true
         type: string
-      releaseEnvironment:
-        description: 'Environment to package'
-        required: true
-        type: choice
-        options:
-          - prod
-          - staging
 
 env:
   RELEASE_TAG: ${{ github.event.inputs.releaseTag }}
-  RELEASE_ENVIRONMENT: ${{ github.event.inputs.releaseEnvironment }}
-  DAEMON_RELEASE_FILE: econnector-daemon-${{ github.event.inputs.releaseEnvironment }}.zip
 
 jobs:
   build-jsvc:
@@ -56,19 +47,18 @@ jobs:
           name: jsvc-${{ matrix.arch }}
           path: linux/bin/jsvc-${{ matrix.arch }}
 
-  release:
+  build-packages:
     needs: build-jsvc
+    strategy:
+      matrix:
+        environment:
+          - staging
+          - prod
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    env:
+      DAEMON_RELEASE_FILE: econnector-daemon-${{ matrix.environment }}.zip
     steps:
       - uses: actions/checkout@v6
-
-      - name: Changelog
-        uses: scottbrenner/generate-changelog-action@master
-        id: Changelog
-        env:
-          REPO: ${{ github.repository }}
 
       - name: Download jsvc binaries
         uses: actions/download-artifact@v8
@@ -126,12 +116,41 @@ jobs:
         run: |
           chmod +x linux/*.sh
           rm -f linux/files/econnector-*.zip
-          tar -czf econnector-installation-linux.tar.gz -C linux .
+          tar -czf econnector-installation-linux-${{ matrix.environment }}.tar.gz -C linux .
 
       - name: Build Windows Zip File
         run: |
           rm -f windows/files/econnector-*.zip
-          (cd windows && zip -r ../econnector-installation-win.zip .)
+          (cd windows && zip -r ../econnector-installation-win-${{ matrix.environment }}.zip .)
+
+      - name: Upload installation packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: econnector-installation-${{ matrix.environment }}
+          path: |
+            econnector-installation-linux-${{ matrix.environment }}.tar.gz
+            econnector-installation-win-${{ matrix.environment }}.zip
+
+  release:
+    needs: build-packages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Changelog
+        uses: scottbrenner/generate-changelog-action@master
+        id: Changelog
+        env:
+          REPO: ${{ github.repository }}
+
+      - name: Download installation packages
+        uses: actions/download-artifact@v8
+        with:
+          pattern: econnector-installation-*
+          path: dist
+          merge-multiple: true
 
       - name: Create Release
         uses: softprops/action-gh-release@v3
@@ -139,11 +158,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.API_TOKEN_GITHUB }}
         with:
           tag_name: ${{ env.RELEASE_TAG }}
-          name: ${{ env.RELEASE_ENVIRONMENT }} release ${{ env.RELEASE_TAG }}
+          name: Release ${{ env.RELEASE_TAG }}
           body: |
             ${{ steps.Changelog.outputs.changelog }}
           draft: false
-          prerelease: ${{ env.RELEASE_ENVIRONMENT == 'staging' }}
+          prerelease: false
           files: |
-            econnector-installation-win.zip
-            econnector-installation-linux.tar.gz
+            dist/econnector-installation-linux-staging.tar.gz
+            dist/econnector-installation-linux-prod.tar.gz
+            dist/econnector-installation-win-staging.zip
+            dist/econnector-installation-win-prod.zip
