@@ -11,15 +11,35 @@ if '%errorlevel%' NEQ '0' (
 ) else ( goto gotAdmin )
 
 :UACPrompt
-    echo Set UAC = CreateObject^("Shell.Application"^) > "%temp%\getadmin.vbs"
-    set params = %*:"="
-    echo UAC.ShellExecute "cmd.exe", "/c %~s0 %params%", "", "runas", 1 >> "%temp%\getadmin.vbs"
-
-    "%temp%\getadmin.vbs"
-    del "%temp%\getadmin.vbs"
+    set "ELEVATE_SCRIPT=%~f0"
+    set "ELEVATE_ARGS=%*"
+    powershell -NoProfile -Command "$ErrorActionPreference='Stop'; if ([string]::IsNullOrEmpty($env:ELEVATE_ARGS)) { Start-Process -LiteralPath $env:ELEVATE_SCRIPT -Verb RunAs } else { Start-Process -LiteralPath $env:ELEVATE_SCRIPT -Verb RunAs -ArgumentList $env:ELEVATE_ARGS }"
+    if errorlevel 1 (
+      echo ERROR: Failed to request administrator privileges.
+      pause
+      exit /b 1
+    )
     exit /B
 
 :gotAdmin
+    set "UPGRADE_TMP=%TEMP%\econnector-upgrade.bat"
+    if /I "%~nx0"=="econnector-upgrade.bat" goto begin_upgrade
+    goto relaunch_from_temp
+
+:relaunch_from_temp
+    copy /Y "%~f0" "%UPGRADE_TMP%" >NUL
+    if errorlevel 1 (
+      echo ERROR: Failed to copy upgrade script to "%UPGRADE_TMP%"
+      pause
+      exit /b 1
+    )
+    cd /d "%TEMP%"
+    call "%UPGRADE_TMP%" %*
+    set "RC=%ERRORLEVEL%"
+    del /Q "%UPGRADE_TMP%" >NUL 2>&1
+    exit /b %RC%
+
+:begin_upgrade
     pushd "%CD%"
     CD /D "%~dp0"
 ::--------------------------------------
@@ -79,13 +99,15 @@ if exist "%INSTALL_HOME%\tokens.econnector"     copy /Y "%INSTALL_HOME%\tokens.e
 if exist "%INSTALL_HOME%\prunsrv.exe" "%INSTALL_HOME%\prunsrv.exe" //DS//%SERVICE_NAME%
 if exist "%USERPROFILE%\Desktop\econnector" del /Q "%USERPROFILE%\Desktop\econnector"
 
-REM Move CWD out of INSTALL_HOME so rmdir is not blocked by the current
-REM directory lock. The directory itself may still remain (e.g. because
-REM this script is running from inside it), which matches uninstall.bat's
-REM documented behaviour and is fine for install.bat as long as the
-REM procrun-logs subdir is gone.
+REM This script was relaunched from %TEMP% when started from C:\econnector,
+REM so the install directory is not locked by the running .bat.
 cd /d "%TEMP%"
 if exist "%INSTALL_HOME%" rmdir /s /q "%INSTALL_HOME%"
+if exist "%INSTALL_HOME%" (
+    echo ERROR: Failed to remove "%INSTALL_HOME%". Close File Explorer windows on that folder and retry.
+    pause
+    exit /B 1
+)
 
 REM ============================================================
 REM [3/4] Download the requested release package from GitHub
@@ -106,15 +128,17 @@ if "%RELEASE_TAG%"=="" (
 set ZIP_URL=https://github.com/%REPO%/releases/download/!RELEASE_TAG!/econnector-installation-win.zip
 set ZIP_PATH=%PKG_DIR%\econnector-installation-win.zip
 
-powershell -NoProfile -Command "Start-BitsTransfer -Source '!ZIP_URL!' -Destination '!ZIP_PATH!'"
+powershell -NoProfile -Command "$ErrorActionPreference='Stop'; Start-BitsTransfer -Source $env:ZIP_URL -Destination $env:ZIP_PATH"
 if errorlevel 1 (
     echo ERROR: download failed from !ZIP_URL!
+    pause
     exit /B 1
 )
 
-powershell -NoProfile -Command "Expand-Archive -Path '!ZIP_PATH!' -DestinationPath '%PKG_DIR%\extracted' -Force"
+powershell -NoProfile -Command "$ErrorActionPreference='Stop'; Expand-Archive -Force -Path $env:ZIP_PATH -DestinationPath (Join-Path $env:PKG_DIR 'extracted')"
 if errorlevel 1 (
     echo ERROR: failed to extract !ZIP_PATH!.
+    pause
     exit /B 1
 )
 
@@ -130,6 +154,7 @@ popd
 
 if not "!INSTALL_RC!"=="0" (
     echo ERROR: install.bat exited with code !INSTALL_RC!.
+    pause
     exit /B !INSTALL_RC!
 )
 

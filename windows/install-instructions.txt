@@ -3,10 +3,10 @@
 Run `install.bat` to install the econnector, it will install all the needed files into `C:\econnector` directory.
 
 
-## Uninstall 
+## Uninstall
 
-Run `uninstall.bat` to uninstall the econnector, it couldn't remove the `C:\econnector` directory, you have to maunally clean it.
+Run `uninstall.bat` (as administrator) to stop the service and remove the `C:\econnector` directory.
 
 ## Debug
 
-Check the logs in `C:\econnector\logs`.
+Check the logs in `C:\econnector\procrun-logs`.

@@ -1,4 +1,5 @@
 @echo off
+setlocal EnableExtensions
 :: BatchGotAdmin
 ::-------------------------------------
 REM  --> Check for permissions
@@ -11,134 +12,207 @@ if '%errorlevel%' NEQ '0' (
 ) else ( goto gotAdmin )
 
 :UACPrompt
-    echo Set UAC = CreateObject^("Shell.Application"^) > "%temp%\getadmin.vbs"
-    set params = %*:"="
-    echo UAC.ShellExecute "cmd.exe", "/c %~s0 %params%", "", "runas", 1 >> "%temp%\getadmin.vbs"
-
-    "%temp%\getadmin.vbs"
-    del "%temp%\getadmin.vbs"
+    set "ELEVATE_SCRIPT=%~f0"
+    set "ELEVATE_ARGS=%*"
+    powershell -NoProfile -Command "$ErrorActionPreference='Stop'; if ([string]::IsNullOrEmpty($env:ELEVATE_ARGS)) { Start-Process -LiteralPath $env:ELEVATE_SCRIPT -Verb RunAs } else { Start-Process -LiteralPath $env:ELEVATE_SCRIPT -Verb RunAs -ArgumentList $env:ELEVATE_ARGS }"
+    if errorlevel 1 (
+      echo ERROR: Failed to request administrator privileges.
+      pause
+      exit /b 1
+    )
     exit /B
 
 :gotAdmin
     pushd "%CD%"
     CD /D "%~dp0"
+    if errorlevel 1 (
+      echo ERROR: Failed to change directory to "%~dp0"
+      goto fail
+    )
 ::--------------------------------------
 
-@echo on
 echo Installing Econnector...
-set SERVICE_NAME=econnector
-set CLASS_FILE=econnector-daemon.jar
-set INSTALL_HOME=C:\%SERVICE_NAME%
-set PR_LOGPATH=%INSTALL_HOME%\procrun-logs
-SET SCRIPT_PATH=%~dp0
+set "SERVICE_NAME=econnector"
+set "CLASS_FILE=econnector-daemon.jar"
+set "INSTALL_HOME=C:\%SERVICE_NAME%"
+set "PR_LOGPATH=%INSTALL_HOME%\procrun-logs"
+set "SCRIPT_PATH=%~dp0"
+set "FILES_DIR=%SCRIPT_PATH%files"
 
 REM Detect CPU architecture (amd64 or arm64)
-set EC_ARCH=
-if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" set EC_ARCH=arm64
-if /i "%PROCESSOR_ARCHITECTURE%"=="AMD64" set EC_ARCH=amd64
-if /i "%PROCESSOR_ARCHITEW6432%"=="ARM64" set EC_ARCH=arm64
-if /i "%PROCESSOR_ARCHITEW6432%"=="AMD64" if "%EC_ARCH%"=="" set EC_ARCH=amd64
+set "EC_ARCH="
+if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "EC_ARCH=arm64"
+if /i "%PROCESSOR_ARCHITECTURE%"=="AMD64" set "EC_ARCH=amd64"
+if /i "%PROCESSOR_ARCHITEW6432%"=="ARM64" set "EC_ARCH=arm64"
+if /i "%PROCESSOR_ARCHITEW6432%"=="AMD64" if "%EC_ARCH%"=="" set "EC_ARCH=amd64"
 if "%EC_ARCH%"=="" (
-  echo Unsupported CPU architecture: %PROCESSOR_ARCHITECTURE%
-  pause
-  goto:eof
+  echo ERROR: Unsupported CPU architecture: %PROCESSOR_ARCHITECTURE%
+  goto fail
 )
 echo Installing for %EC_ARCH%...
 
-if exist "%PR_LOGPATH%" (
-  echo Existing eConnector installation detected. Repairing credential storage...
-  if not exist "%SCRIPT_PATH%\repair-credentials.bat" (
-    echo Missing repair script: repair-credentials.bat
-    exit /b 1
+set "NEED_FULL_INSTALL=0"
+if not exist "%PR_LOGPATH%" set "NEED_FULL_INSTALL=1"
+if not exist "%INSTALL_HOME%\%CLASS_FILE%" set "NEED_FULL_INSTALL=1"
+if not exist "%INSTALL_HOME%\prunsrv.exe" set "NEED_FULL_INSTALL=1"
+set "JDK_EXIST="
+for /d %%I in ("%INSTALL_HOME%\jdk*") do set "JDK_EXIST=1"
+if not defined JDK_EXIST set "NEED_FULL_INSTALL=1"
+
+if "%NEED_FULL_INSTALL%"=="0" (
+  echo Existing complete installation detected. Repairing credential storage...
+  if not exist "%SCRIPT_PATH%repair-credentials.bat" (
+    echo ERROR: Missing repair script: repair-credentials.bat
+    goto fail
   )
   if /I not "%SCRIPT_PATH%"=="%INSTALL_HOME%\" (
-    copy /Y "%SCRIPT_PATH%\repair-credentials.bat" "%INSTALL_HOME%\repair-credentials.bat" >NUL 2>&1
-    if errorlevel 1 exit /b 1
+    call :copy_file "%SCRIPT_PATH%repair-credentials.bat" "%INSTALL_HOME%\repair-credentials.bat"
+    if errorlevel 1 goto fail
   )
   call "%INSTALL_HOME%\repair-credentials.bat"
-  if errorlevel 1 exit /b 1
+  if errorlevel 1 goto fail
+  echo Credential storage repaired successfully.
   exit /b 0
 )
+if exist "%PR_LOGPATH%" (
+  echo Incomplete installation detected under %INSTALL_HOME%. Performing a full install.
+)
 
-if not exist "%SCRIPT_PATH%\bin\prunsrv-%EC_ARCH%.exe" (
-  echo Missing Procrun service binary: bin\prunsrv-%EC_ARCH%.exe
-  pause
-  goto:eof
+if not exist "%SCRIPT_PATH%bin\prunsrv-%EC_ARCH%.exe" (
+  echo ERROR: Missing Procrun service binary: "%SCRIPT_PATH%bin\prunsrv-%EC_ARCH%.exe"
+  goto fail
+)
+if not exist "%FILES_DIR%\%CLASS_FILE%" (
+  echo ERROR: Missing payload: "%FILES_DIR%\%CLASS_FILE%"
+  goto fail
 )
 
 REM install java
 if /i "%EC_ARCH%"=="arm64" (
-  set JDK_URL=https://corretto.aws/downloads/resources/25.0.2.10.1/amazon-corretto-25.0.2.10.1-windows-aarch64-jdk.zip
+  set "JDK_URL=https://corretto.aws/downloads/resources/25.0.2.10.1/amazon-corretto-25.0.2.10.1-windows-aarch64-jdk.zip"
 ) else (
-  set JDK_URL=https://corretto.aws/downloads/resources/25.0.2.10.1/amazon-corretto-25.0.2.10.1-windows-x64-jdk.zip
+  set "JDK_URL=https://corretto.aws/downloads/resources/25.0.2.10.1/amazon-corretto-25.0.2.10.1-windows-x64-jdk.zip"
 )
 
-if not exist jdk.zip (
-powershell -command "Start-BitsTransfer -Source %JDK_URL% -Destination jdk.zip.tmp"
-move /y jdk.zip.tmp jdk.zip
+set "JDK_ZIP=%SCRIPT_PATH%jdk.zip"
+set "JDK_ZIP_TMP=%SCRIPT_PATH%jdk.zip.tmp"
+
+if not exist "%JDK_ZIP%" (
+  echo Downloading JDK...
+  powershell -NoProfile -Command "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile($env:JDK_URL, $env:JDK_ZIP_TMP)"
+  if errorlevel 1 (
+    echo ERROR: Failed to download JDK from %JDK_URL%
+    goto fail
+  )
+  move /y "%JDK_ZIP_TMP%" "%JDK_ZIP%"
+  if errorlevel 1 (
+    echo ERROR: Failed to save jdk.zip
+    goto fail
+  )
 )
 
-if not exist "%INSTALL_HOME%" mkdir "%INSTALL_HOME%"
-powershell -command "Expand-Archive -Force jdk.zip %INSTALL_HOME%"
-
-set JDK_DIR=
-for /d %%I in ("%INSTALL_HOME%\jdk*") do set JDK_DIR=%%~fI
-if "%JDK_DIR%"=="" (
-  echo Failed to locate extracted JDK directory under %INSTALL_HOME%.
-  pause
-  goto:eof
+if not exist "%INSTALL_HOME%" (
+  mkdir "%INSTALL_HOME%"
+  if errorlevel 1 (
+    echo ERROR: Failed to create "%INSTALL_HOME%"
+    goto fail
+  )
 )
-set PR_JVM=%JDK_DIR%\bin\server\jvm.dll
+
+echo Extracting JDK to %INSTALL_HOME%...
+powershell -NoProfile -Command "$ErrorActionPreference='Stop'; Expand-Archive -Force -Path $env:JDK_ZIP -DestinationPath $env:INSTALL_HOME"
+if errorlevel 1 (
+  echo ERROR: Failed to extract JDK from "%JDK_ZIP%"
+  if exist "%JDK_ZIP%" del /Q "%JDK_ZIP%"
+  goto fail
+)
+
+set "JDK_DIR="
+for /d %%I in ("%INSTALL_HOME%\jdk*") do set "JDK_DIR=%%~fI"
+if not defined JDK_DIR (
+  echo ERROR: Failed to locate extracted JDK directory under %INSTALL_HOME%.
+  echo Contents of %INSTALL_HOME%:
+  dir "%INSTALL_HOME%"
+  goto fail
+)
+set "PR_JVM=%JDK_DIR%\bin\server\jvm.dll"
 if not exist "%PR_JVM%" (
-  echo Failed to locate JVM: %PR_JVM%
-  pause
-  goto:eof
+  echo ERROR: Failed to locate JVM: %PR_JVM%
+  goto fail
 )
+echo JDK installed at %JDK_DIR%
 
 REM Service log configuration
-set PR_LOGPREFIX=%SERVICE_NAME%
-set PR_STDOUTPUT=auto
-set PR_STDERROR=auto
-set PR_PIDFILE=procrun.pid
-set PR_LOGLEVEL=Error
-set PR_DESCRIPTION=%SERVICE_NAME%
+set "PR_LOGPREFIX=%SERVICE_NAME%"
+set "PR_STDOUTPUT=auto"
+set "PR_STDERROR=auto"
+set "PR_PIDFILE=procrun.pid"
+set "PR_LOGLEVEL=Error"
+set "PR_DESCRIPTION=%SERVICE_NAME%"
 
 REM Startup configuration
-set PR_INSTALL=%INSTALL_HOME%\prunsrv.exe
-set PR_CLASSPATH=%INSTALL_HOME%\%CLASS_FILE%
-set PR_STARTUP=auto
-set PR_STARTMODE=jvm
-set PR_STARTCLASS=com.ebsoftwareservices.econnector.daemon.EconnectorDaemonOnWindows
-set PR_STARTMETHOD=windowsService
-set PR_STARTPARAMS=start
-set PR_JVMOPTIONS=-Djar.dir=%INSTALL_HOME%
+set "PR_INSTALL=%INSTALL_HOME%\prunsrv.exe"
+set "PR_CLASSPATH=%INSTALL_HOME%\%CLASS_FILE%"
+set "PR_STARTUP=auto"
+set "PR_STARTMODE=jvm"
+set "PR_STARTCLASS=com.ebsoftwareservices.econnector.daemon.EconnectorDaemonOnWindows"
+set "PR_STARTMETHOD=windowsService"
+set "PR_STARTPARAMS=start"
+set "PR_JVMOPTIONS=-Djar.dir=%INSTALL_HOME%"
 
 REM Shutdown configuration
-set PR_STOPMODE=jvm
-set PR_STOPCLASS=com.ebsoftwareservices.econnector.daemon.EconnectorDaemonOnWindows
-set PR_STOPMETHOD=windowsService
-set PR_STOPPARAMS=stop
+set "PR_STOPMODE=jvm"
+set "PR_STOPCLASS=com.ebsoftwareservices.econnector.daemon.EconnectorDaemonOnWindows"
+set "PR_STOPMETHOD=windowsService"
+set "PR_STOPPARAMS=stop"
 
 REM Install service
 mkdir "%PR_LOGPATH%" >NUL 2>&1
-xcopy /E /Y "%SCRIPT_PATH%*.bat" "%INSTALL_HOME%\" >NUL 2>&1
-if errorlevel 1 (
-  echo ERROR: Failed to copy installer scripts to %INSTALL_HOME%.
-  exit /b 1
+
+echo Copying installer scripts...
+for %%F in ("%SCRIPT_PATH%*.bat") do (
+  call :copy_file "%%~fF" "%INSTALL_HOME%\%%~nxF"
+  if errorlevel 1 goto fail
 )
 if not exist "%INSTALL_HOME%\repair-credentials.bat" (
   echo ERROR: Missing installed repair script: repair-credentials.bat
-  exit /b 1
+  goto fail
 )
-if exist "%SCRIPT_PATH%\files\*.jar" xcopy /Y %SCRIPT_PATH%\files\*.jar "%INSTALL_HOME%\" >NUL 2>&1
-if exist "%SCRIPT_PATH%\files\*.json" xcopy /Y %SCRIPT_PATH%\files\*.json "%INSTALL_HOME%\" >NUL 2>&1
-if exist "%SCRIPT_PATH%\files\econnector-ui.exe" copy /Y "%SCRIPT_PATH%\files\econnector-ui.exe" "%INSTALL_HOME%\" >NUL 2>&1
-copy /Y "%SCRIPT_PATH%\bin\prunsrv-%EC_ARCH%.exe" "%INSTALL_HOME%\prunsrv.exe" >NUL 2>&1
-if exist "%SCRIPT_PATH%\bin\prunmgr-%EC_ARCH%.exe" copy /Y "%SCRIPT_PATH%\bin\prunmgr-%EC_ARCH%.exe" "%INSTALL_HOME%\prunmgr.exe" >NUL 2>&1
-if exist "%INSTALL_HOME%\econnector-ui.exe" mklink "%USERPROFILE%"\Desktop\econnector "%INSTALL_HOME%"\econnector-ui.exe
+
+echo Copying application files...
+call :copy_file "%FILES_DIR%\%CLASS_FILE%" "%INSTALL_HOME%\%CLASS_FILE%"
+if errorlevel 1 goto fail
+
+for %%F in ("%FILES_DIR%\*.json") do (
+  call :copy_file "%%~fF" "%INSTALL_HOME%\%%~nxF"
+  if errorlevel 1 goto fail
+)
+
+if exist "%FILES_DIR%\econnector-ui.exe" (
+  call :copy_file "%FILES_DIR%\econnector-ui.exe" "%INSTALL_HOME%\econnector-ui.exe"
+  if errorlevel 1 goto fail
+)
+
+call :copy_file "%SCRIPT_PATH%bin\prunsrv-%EC_ARCH%.exe" "%INSTALL_HOME%\prunsrv.exe"
+if errorlevel 1 goto fail
+if exist "%SCRIPT_PATH%bin\prunmgr-%EC_ARCH%.exe" (
+  call :copy_file "%SCRIPT_PATH%bin\prunmgr-%EC_ARCH%.exe" "%INSTALL_HOME%\prunmgr.exe"
+  if errorlevel 1 goto fail
+)
+
+if exist "%INSTALL_HOME%\econnector-ui.exe" (
+  mklink "%USERPROFILE%\Desktop\econnector" "%INSTALL_HOME%\econnector-ui.exe"
+  if errorlevel 1 (
+    echo WARN: Failed to create desktop shortcut.
+  )
+)
+
 "%INSTALL_HOME%\prunsrv.exe" //DS//%SERVICE_NAME% >NUL 2>&1
 "%INSTALL_HOME%\prunsrv.exe" //IS//%SERVICE_NAME%
-REM "%INSTALL_HOME%\prunsrv.exe" //ES//%SERVICE_NAME%
+if errorlevel 1 (
+  echo ERROR: Failed to install Windows service %SERVICE_NAME%.
+  goto fail
+)
 
 REM ---- On-demand privilege removal ----
 REM Predicate the credential/token files with an explicit ACL so the UI (running
@@ -164,10 +238,27 @@ REM service defaults with RP+WP (SERVICE_START + SERVICE_STOP) added to IU.
 sc sdset %SERVICE_NAME% "D:(A;;CCLCSWRPWPDTLOCRRC;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCLCSWRPWPLOCRRC;;;IU)(A;;CCLCSWLOCRRC;;;SU)"
 if errorlevel 1 goto install_failed
 
+echo.
+echo Installation completed successfully.
+exit /b 0
+
+:copy_file
+copy /Y "%~1" "%~2"
+if errorlevel 1 (
+  echo ERROR: Failed to copy "%~1" to "%~2"
+  exit /b 1
+)
+if not exist "%~2" (
+  echo ERROR: File missing after copy: "%~2"
+  exit /b 1
+)
 exit /b 0
 
 :install_failed
 echo ERROR: Failed to create writable credential storage.
-exit /b 1
 
-:eof
+:fail
+echo.
+echo Installation FAILED. Please fix the error above and run install.bat again.
+pause
+exit /b 1

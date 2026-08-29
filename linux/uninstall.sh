@@ -9,6 +9,11 @@ require_root
 
 echo "Uninstalling Econnector..."
 
+# Leave INSTALL_HOME before deleting it. If this script is the installed copy
+# under /opt/econnector, rename the directory first so the running script is not
+# removed out from under a POSIX sh that reads the file incrementally.
+cd /
+
 if systemctl is-active --quiet "${SERVICE_NAME}" 2>/dev/null; then
     systemctl stop "${SERVICE_NAME}"
 fi
@@ -23,7 +28,14 @@ if [ -f "/etc/systemd/system/${SERVICE_NAME}.service" ]; then
 fi
 
 if [ -d "${INSTALL_HOME}" ]; then
-    rm -rf "${INSTALL_HOME}"
+    doomed="${INSTALL_HOME}.removing.$$"
+    mv "${INSTALL_HOME}" "$doomed"
+    rm -rf "$doomed"
+fi
+
+if [ -e "${INSTALL_HOME}" ]; then
+    echo "ERROR: Failed to remove ${INSTALL_HOME}." >&2
+    exit 1
 fi
 
 echo "Econnector uninstalled."
