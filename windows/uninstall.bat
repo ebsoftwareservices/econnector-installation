@@ -14,7 +14,7 @@ if '%errorlevel%' NEQ '0' (
 :UACPrompt
     set "ELEVATE_SCRIPT=%~f0"
     set "ELEVATE_ARGS=%*"
-    powershell -NoProfile -Command "$ErrorActionPreference='Stop'; if ([string]::IsNullOrEmpty($env:ELEVATE_ARGS)) { Start-Process -LiteralPath $env:ELEVATE_SCRIPT -Verb RunAs } else { Start-Process -LiteralPath $env:ELEVATE_SCRIPT -Verb RunAs -ArgumentList $env:ELEVATE_ARGS }"
+    powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $p = '\"' + $env:ELEVATE_SCRIPT + '\"'; if (-not [string]::IsNullOrEmpty($env:ELEVATE_ARGS)) { $p = $p + ' ' + $env:ELEVATE_ARGS }; Start-Process -FilePath $env:ComSpec -ArgumentList @('/D','/C', $p) -Verb RunAs"
     if errorlevel 1 (
       echo ERROR: Failed to request administrator privileges.
       pause

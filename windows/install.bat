@@ -14,7 +14,7 @@ if '%errorlevel%' NEQ '0' (
 :UACPrompt
     set "ELEVATE_SCRIPT=%~f0"
     set "ELEVATE_ARGS=%*"
-    powershell -NoProfile -Command "$ErrorActionPreference='Stop'; if ([string]::IsNullOrEmpty($env:ELEVATE_ARGS)) { Start-Process -LiteralPath $env:ELEVATE_SCRIPT -Verb RunAs } else { Start-Process -LiteralPath $env:ELEVATE_SCRIPT -Verb RunAs -ArgumentList $env:ELEVATE_ARGS }"
+    powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $p = '\"' + $env:ELEVATE_SCRIPT + '\"'; if (-not [string]::IsNullOrEmpty($env:ELEVATE_ARGS)) { $p = $p + ' ' + $env:ELEVATE_ARGS }; Start-Process -FilePath $env:ComSpec -ArgumentList @('/D','/C', $p) -Verb RunAs"
     if errorlevel 1 (
       echo ERROR: Failed to request administrator privileges.
       pause
@@ -66,8 +66,11 @@ if "%NEED_FULL_INSTALL%"=="0" (
     goto fail
   )
   if /I not "%SCRIPT_PATH%"=="%INSTALL_HOME%\" (
-    call :copy_file "%SCRIPT_PATH%repair-credentials.bat" "%INSTALL_HOME%\repair-credentials.bat"
-    if errorlevel 1 goto fail
+    copy /Y "%SCRIPT_PATH%repair-credentials.bat" "%INSTALL_HOME%\repair-credentials.bat"
+    if errorlevel 1 (
+      echo ERROR: Failed to copy repair-credentials.bat to "%INSTALL_HOME%"
+      goto fail
+    )
   )
   call "%INSTALL_HOME%\repair-credentials.bat"
   if errorlevel 1 goto fail
@@ -166,13 +169,24 @@ set "PR_STOPCLASS=com.ebsoftwareservices.econnector.daemon.EconnectorDaemonOnWin
 set "PR_STOPMETHOD=windowsService"
 set "PR_STOPPARAMS=stop"
 
+REM Do not use "call :label" in this script. cmd.exe re-invokes %0 to jump to a
+REM label; if the installer path contains spaces and %0 is unquoted, that
+REM becomes "cannot find the batch file copy_file" (French: "nom de fichier de commandes").
+
 REM Install service
 mkdir "%PR_LOGPATH%" >NUL 2>&1
 
 echo Copying installer scripts...
 for %%F in ("%SCRIPT_PATH%*.bat") do (
-  call :copy_file "%%~fF" "%INSTALL_HOME%\%%~nxF"
-  if errorlevel 1 goto fail
+  copy /Y "%%~fF" "%INSTALL_HOME%\%%~nxF"
+  if errorlevel 1 (
+    echo ERROR: Failed to copy "%%~fF" to "%INSTALL_HOME%\%%~nxF"
+    goto fail
+  )
+  if not exist "%INSTALL_HOME%\%%~nxF" (
+    echo ERROR: File missing after copy: "%INSTALL_HOME%\%%~nxF"
+    goto fail
+  )
 )
 if not exist "%INSTALL_HOME%\repair-credentials.bat" (
   echo ERROR: Missing installed repair script: repair-credentials.bat
@@ -180,24 +194,55 @@ if not exist "%INSTALL_HOME%\repair-credentials.bat" (
 )
 
 echo Copying application files...
-call :copy_file "%FILES_DIR%\%CLASS_FILE%" "%INSTALL_HOME%\%CLASS_FILE%"
-if errorlevel 1 goto fail
+copy /Y "%FILES_DIR%\%CLASS_FILE%" "%INSTALL_HOME%\%CLASS_FILE%"
+if errorlevel 1 (
+  echo ERROR: Failed to copy "%FILES_DIR%\%CLASS_FILE%" to "%INSTALL_HOME%\%CLASS_FILE%"
+  goto fail
+)
+if not exist "%INSTALL_HOME%\%CLASS_FILE%" (
+  echo ERROR: File missing after copy: "%INSTALL_HOME%\%CLASS_FILE%"
+  goto fail
+)
 
 for %%F in ("%FILES_DIR%\*.json") do (
-  call :copy_file "%%~fF" "%INSTALL_HOME%\%%~nxF"
-  if errorlevel 1 goto fail
+  copy /Y "%%~fF" "%INSTALL_HOME%\%%~nxF"
+  if errorlevel 1 (
+    echo ERROR: Failed to copy "%%~fF" to "%INSTALL_HOME%\%%~nxF"
+    goto fail
+  )
+  if not exist "%INSTALL_HOME%\%%~nxF" (
+    echo ERROR: File missing after copy: "%INSTALL_HOME%\%%~nxF"
+    goto fail
+  )
 )
 
 if exist "%FILES_DIR%\econnector-ui.exe" (
-  call :copy_file "%FILES_DIR%\econnector-ui.exe" "%INSTALL_HOME%\econnector-ui.exe"
-  if errorlevel 1 goto fail
+  copy /Y "%FILES_DIR%\econnector-ui.exe" "%INSTALL_HOME%\econnector-ui.exe"
+  if errorlevel 1 (
+    echo ERROR: Failed to copy econnector-ui.exe to "%INSTALL_HOME%"
+    goto fail
+  )
+  if not exist "%INSTALL_HOME%\econnector-ui.exe" (
+    echo ERROR: File missing after copy: "%INSTALL_HOME%\econnector-ui.exe"
+    goto fail
+  )
 )
 
-call :copy_file "%SCRIPT_PATH%bin\prunsrv-%EC_ARCH%.exe" "%INSTALL_HOME%\prunsrv.exe"
-if errorlevel 1 goto fail
+copy /Y "%SCRIPT_PATH%bin\prunsrv-%EC_ARCH%.exe" "%INSTALL_HOME%\prunsrv.exe"
+if errorlevel 1 (
+  echo ERROR: Failed to copy prunsrv.exe to "%INSTALL_HOME%"
+  goto fail
+)
+if not exist "%INSTALL_HOME%\prunsrv.exe" (
+  echo ERROR: File missing after copy: "%INSTALL_HOME%\prunsrv.exe"
+  goto fail
+)
 if exist "%SCRIPT_PATH%bin\prunmgr-%EC_ARCH%.exe" (
-  call :copy_file "%SCRIPT_PATH%bin\prunmgr-%EC_ARCH%.exe" "%INSTALL_HOME%\prunmgr.exe"
-  if errorlevel 1 goto fail
+  copy /Y "%SCRIPT_PATH%bin\prunmgr-%EC_ARCH%.exe" "%INSTALL_HOME%\prunmgr.exe"
+  if errorlevel 1 (
+    echo ERROR: Failed to copy prunmgr.exe to "%INSTALL_HOME%"
+    goto fail
+  )
 )
 
 if exist "%INSTALL_HOME%\econnector-ui.exe" (
@@ -240,18 +285,6 @@ if errorlevel 1 goto install_failed
 
 echo.
 echo Installation completed successfully.
-exit /b 0
-
-:copy_file
-copy /Y "%~1" "%~2"
-if errorlevel 1 (
-  echo ERROR: Failed to copy "%~1" to "%~2"
-  exit /b 1
-)
-if not exist "%~2" (
-  echo ERROR: File missing after copy: "%~2"
-  exit /b 1
-)
 exit /b 0
 
 :install_failed
