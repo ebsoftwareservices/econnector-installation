@@ -57,6 +57,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DAEMON_RELEASE_FILE: econnector-daemon-${{ matrix.environment }}.zip
+      UI_RELEASE_FILE: econnector-ui-${{ matrix.environment }}.zip
     steps:
       - uses: actions/checkout@v6
 
@@ -107,7 +108,7 @@ jobs:
         with:
           repository: 'ebsoftwareservices/econnector-ui'
           latest: true
-          fileName: 'econnector-ui.zip'
+          fileName: ${{ env.UI_RELEASE_FILE }}
           out-file-path: windows/files
           extract: true
           token: ${{ secrets.API_TOKEN_GITHUB }}

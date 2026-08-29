@@ -34,7 +34,7 @@ Publish dependent repos first (workflow uses `latest`):
 
 1. [econnector-daemon](https://github.com/ebsoftwareservices/econnector-daemon) → `econnector-daemon.zip`
 2. [econnector-daemon-keysafe](https://github.com/ebsoftwareservices/econnector-daemon-keysafe) → `econnector-daemon-keysafe.zip` (Linux only)
-3. [econnector-ui](https://github.com/ebsoftwareservices/econnector-ui) → `econnector-ui.zip` (Windows only)
+3. [econnector-ui](https://github.com/ebsoftwareservices/econnector-ui) → `econnector-ui-staging.zip` / `econnector-ui-prod.zip` (Windows only)
 
 Ensure `windows/bin/` contains Procrun binaries from Apache Commons Daemon 1.6.1 before releasing.
 
