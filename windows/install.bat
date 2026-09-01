@@ -12,14 +12,10 @@ if '%errorlevel%' NEQ '0' (
 ) else ( goto gotAdmin )
 
 :UACPrompt
-    set "ELEVATE_SCRIPT=%~f0"
-    set "ELEVATE_ARGS=%*"
-    powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $p = '\"' + $env:ELEVATE_SCRIPT + '\"'; if (-not [string]::IsNullOrEmpty($env:ELEVATE_ARGS)) { $p = $p + ' ' + $env:ELEVATE_ARGS }; Start-Process -FilePath $env:ComSpec -ArgumentList @('/D','/C', $p) -Verb RunAs"
-    if errorlevel 1 (
-      echo ERROR: Failed to request administrator privileges.
-      pause
-      exit /b 1
-    )
+    echo Set UAC = CreateObject^("Shell.Application"^) > "%temp%\getadmin.vbs"
+    echo UAC.ShellExecute "cmd.exe", "/c ""%~f0"" %*", "", "runas", 1 >> "%temp%\getadmin.vbs"
+    "%temp%\getadmin.vbs"
+    del "%temp%\getadmin.vbs"
     exit /B
 
 :gotAdmin
@@ -32,6 +28,18 @@ if '%errorlevel%' NEQ '0' (
 ::--------------------------------------
 
 echo Installing Econnector...
+
+REM Java 25 and Electron 37 need Windows 10 / Server 2016+ (NT 10.0).
+REM ver is "Microsoft Windows [Version 6.3.9600]" on Server 2012 R2.
+ver | findstr /R /C:"Version 6[.]" >NUL
+if not errorlevel 1 (
+  echo ERROR: Unsupported Windows version.
+  echo Econnector requires Windows 10 or Windows Server 2016 or later.
+  echo This computer is Windows 8.1 / Windows Server 2012 R2 ^(or older^).
+  echo The Connector UI and Java 25 cannot run here, even if files copy successfully.
+  goto fail
+)
+
 set "SERVICE_NAME=econnector"
 set "CLASS_FILE=econnector-daemon.jar"
 set "INSTALL_HOME=C:\%SERVICE_NAME%"
@@ -102,7 +110,7 @@ set "JDK_ZIP_TMP=%SCRIPT_PATH%jdk.zip.tmp"
 
 if not exist "%JDK_ZIP%" (
   echo Downloading JDK...
-  powershell -NoProfile -Command "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile($env:JDK_URL, $env:JDK_ZIP_TMP)"
+  powershell -NoProfile -Command "Start-BitsTransfer -Source $env:JDK_URL -Destination $env:JDK_ZIP_TMP"
   if errorlevel 1 (
     echo ERROR: Failed to download JDK from %JDK_URL%
     goto fail
@@ -123,7 +131,11 @@ if not exist "%INSTALL_HOME%" (
 )
 
 echo Extracting JDK to %INSTALL_HOME%...
-powershell -NoProfile -Command "$ErrorActionPreference='Stop'; Expand-Archive -Force -Path $env:JDK_ZIP -DestinationPath $env:INSTALL_HOME"
+if not exist "%SCRIPT_PATH%extract-zip.ps1" (
+  echo ERROR: Missing extract-zip.ps1
+  goto fail
+)
+powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_PATH%extract-zip.ps1" -ZipPath "%JDK_ZIP%" -Destination "%INSTALL_HOME%"
 if errorlevel 1 (
   echo ERROR: Failed to extract JDK from "%JDK_ZIP%"
   if exist "%JDK_ZIP%" del /Q "%JDK_ZIP%"
@@ -188,6 +200,13 @@ for %%F in ("%SCRIPT_PATH%*.bat") do (
     goto fail
   )
 )
+if exist "%SCRIPT_PATH%extract-zip.ps1" (
+  copy /Y "%SCRIPT_PATH%extract-zip.ps1" "%INSTALL_HOME%\extract-zip.ps1"
+  if errorlevel 1 (
+    echo ERROR: Failed to copy extract-zip.ps1
+    goto fail
+  )
+)
 if not exist "%INSTALL_HOME%\repair-credentials.bat" (
   echo ERROR: Missing installed repair script: repair-credentials.bat
   goto fail
@@ -246,7 +265,8 @@ if exist "%SCRIPT_PATH%bin\prunmgr-%EC_ARCH%.exe" (
 )
 
 if exist "%INSTALL_HOME%\econnector-ui.exe" (
-  mklink "%USERPROFILE%\Desktop\econnector" "%INSTALL_HOME%\econnector-ui.exe"
+  if exist "%PUBLIC%\Desktop\econnector" del /Q "%PUBLIC%\Desktop\econnector" >NUL 2>&1
+  mklink "%PUBLIC%\Desktop\econnector" "%INSTALL_HOME%\econnector-ui.exe"
   if errorlevel 1 (
     echo WARN: Failed to create desktop shortcut.
   )
@@ -285,6 +305,10 @@ if errorlevel 1 goto install_failed
 
 echo.
 echo Installation completed successfully.
+if exist "%INSTALL_HOME%\econnector-ui.exe" (
+  echo Starting Connector UI...
+  start "" "%INSTALL_HOME%\econnector-ui.exe"
+)
 exit /b 0
 
 :install_failed

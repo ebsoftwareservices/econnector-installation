@@ -1,7 +1,12 @@
+## Requirements
+
+Windows 10 or Windows Server 2016 or later. Windows Server 2012 R2 is not supported (Java 25 and the Connector UI cannot run on it).
+
 ## Install
 
-Run `install.bat` to install the econnector, it will install all the needed files into `C:\econnector` directory.
+Right-click `install.bat` and choose Run as administrator. Files are installed to `C:\econnector`. A desktop shortcut is created for all users, and the Connector UI starts when setup finishes.
 
+If an antivirus (for example Kaspersky) blocks `install.bat`, add an exclusion for the installer folder and for `C:\econnector`. Do not choose Disinfect.
 
 ## Uninstall
 

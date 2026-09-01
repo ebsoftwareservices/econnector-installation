@@ -11,14 +11,10 @@ if '%errorlevel%' NEQ '0' (
 ) else ( goto gotAdmin )
 
 :UACPrompt
-    set "ELEVATE_SCRIPT=%~f0"
-    set "ELEVATE_ARGS=%*"
-    powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $p = '\"' + $env:ELEVATE_SCRIPT + '\"'; if (-not [string]::IsNullOrEmpty($env:ELEVATE_ARGS)) { $p = $p + ' ' + $env:ELEVATE_ARGS }; Start-Process -FilePath $env:ComSpec -ArgumentList @('/D','/C', $p) -Verb RunAs"
-    if errorlevel 1 (
-      echo ERROR: Failed to request administrator privileges.
-      pause
-      exit /b 1
-    )
+    echo Set UAC = CreateObject^("Shell.Application"^) > "%temp%\getadmin.vbs"
+    echo UAC.ShellExecute "cmd.exe", "/c ""%~f0"" %*", "", "runas", 1 >> "%temp%\getadmin.vbs"
+    "%temp%\getadmin.vbs"
+    del "%temp%\getadmin.vbs"
     exit /B
 
 :gotAdmin
@@ -33,6 +29,7 @@ if '%errorlevel%' NEQ '0' (
       pause
       exit /b 1
     )
+    if exist "%~dp0extract-zip.ps1" copy /Y "%~dp0extract-zip.ps1" "%TEMP%\extract-zip.ps1" >NUL
     cd /d "%TEMP%"
     call "%UPGRADE_TMP%" %*
     set "RC=%ERRORLEVEL%"
@@ -98,6 +95,7 @@ if exist "%INSTALL_HOME%\tokens.econnector"     copy /Y "%INSTALL_HOME%\tokens.e
 
 if exist "%INSTALL_HOME%\prunsrv.exe" "%INSTALL_HOME%\prunsrv.exe" //DS//%SERVICE_NAME%
 if exist "%USERPROFILE%\Desktop\econnector" del /Q "%USERPROFILE%\Desktop\econnector"
+if exist "%PUBLIC%\Desktop\econnector" del /Q "%PUBLIC%\Desktop\econnector"
 
 REM This script was relaunched from %TEMP% when started from C:\econnector,
 REM so the install directory is not locked by the running .bat.
@@ -128,14 +126,23 @@ if "%RELEASE_TAG%"=="" (
 set ZIP_URL=https://github.com/%REPO%/releases/download/!RELEASE_TAG!/econnector-installation-win.zip
 set ZIP_PATH=%PKG_DIR%\econnector-installation-win.zip
 
-powershell -NoProfile -Command "$ErrorActionPreference='Stop'; Start-BitsTransfer -Source $env:ZIP_URL -Destination $env:ZIP_PATH"
+powershell -NoProfile -Command "Start-BitsTransfer -Source $env:ZIP_URL -Destination $env:ZIP_PATH"
 if errorlevel 1 (
     echo ERROR: download failed from !ZIP_URL!
     pause
     exit /B 1
 )
 
-powershell -NoProfile -Command "$ErrorActionPreference='Stop'; Expand-Archive -Force -Path $env:ZIP_PATH -DestinationPath (Join-Path $env:PKG_DIR 'extracted')"
+mkdir "%PKG_DIR%\extracted" >NUL 2>&1
+if exist "%TEMP%\extract-zip.ps1" (
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%TEMP%\extract-zip.ps1" -ZipPath "!ZIP_PATH!" -Destination "%PKG_DIR%\extracted"
+) else if exist "%~dp0extract-zip.ps1" (
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0extract-zip.ps1" -ZipPath "!ZIP_PATH!" -Destination "%PKG_DIR%\extracted"
+) else (
+    echo ERROR: missing extract-zip.ps1
+    pause
+    exit /B 1
+)
 if errorlevel 1 (
     echo ERROR: failed to extract !ZIP_PATH!.
     pause

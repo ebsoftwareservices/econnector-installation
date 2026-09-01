@@ -12,14 +12,10 @@ if '%errorlevel%' NEQ '0' (
 ) else ( goto gotAdmin )
 
 :UACPrompt
-    set "ELEVATE_SCRIPT=%~f0"
-    set "ELEVATE_ARGS=%*"
-    powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $p = '\"' + $env:ELEVATE_SCRIPT + '\"'; if (-not [string]::IsNullOrEmpty($env:ELEVATE_ARGS)) { $p = $p + ' ' + $env:ELEVATE_ARGS }; Start-Process -FilePath $env:ComSpec -ArgumentList @('/D','/C', $p) -Verb RunAs"
-    if errorlevel 1 (
-      echo ERROR: Failed to request administrator privileges.
-      pause
-      exit /b 1
-    )
+    echo Set UAC = CreateObject^("Shell.Application"^) > "%temp%\getadmin.vbs"
+    echo UAC.ShellExecute "cmd.exe", "/c ""%~f0"" %*", "", "runas", 1 >> "%temp%\getadmin.vbs"
+    "%temp%\getadmin.vbs"
+    del "%temp%\getadmin.vbs"
     exit /B
 
 :gotAdmin
@@ -71,6 +67,7 @@ if exist "%INSTALL_HOME%\prunsrv.exe" (
 sc delete %SERVICE_NAME% >NUL 2>&1
 
 if exist "%USERPROFILE%\Desktop\econnector" del /Q "%USERPROFILE%\Desktop\econnector"
+if exist "%PUBLIC%\Desktop\econnector" del /Q "%PUBLIC%\Desktop\econnector"
 
 echo Removing "%INSTALL_HOME%"...
 set /a __tries=0
